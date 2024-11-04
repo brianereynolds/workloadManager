@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auda
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auda
+  template:
+    metadata:
+      labels:
+        app: auda
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: agentpool
+                    operator: In
+                    values:
+                      - servicesblue
+      containers:
+        - name: my-container
+          image: nginx:latest
+          ports:
+            - containerPort: 80

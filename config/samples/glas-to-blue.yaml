@@ -1,0 +1,44 @@
+apiVersion: k8smanageers.greyridge.com/v1
+kind: WorkloadManager
+metadata:
+  labels:
+    app.kubernetes.io/name: workloadmanager
+    app.kubernetes.io/managed-by: kustomize
+  name: workloadmanager-sample
+spec:
+  subscriptionId: "3e54eb54-946e-4ff4-a430-d7b190cd45cf"
+  resourceGroup: "node-upgrader"
+  clusterName: "lm-cluster"
+  retryOnError: false
+  testMode: false
+  procedures:
+#    - description: "move-postgres"
+#      type: "statefulset"
+#      namespace: "myns"
+#      workloads:
+#        - "postgres"
+#      affinity:
+#        key: "agentpool"
+#        initial: "servicesglas"
+#        target: "servicesblue"
+    - description: "move-services"
+      type: "deployment"
+      namespace: "myns"
+      workloads:
+        - "auda"
+      affinity:
+        key: "agentpool"
+        initial: "servicesglas"
+        target: "servicesblue"
+
+    - description: "move-central"
+      type: "deployment"
+      namespace: "myns"
+      workloads:
+        - "central"
+      affinity:
+        key: "agentpool"
+        initial: "centralglas"
+        target: "centralblue"
+
+

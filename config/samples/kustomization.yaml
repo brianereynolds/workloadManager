@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- blue-to-glas.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
