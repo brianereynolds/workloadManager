@@ -1,16 +1,86 @@
 # workloadmanager
-// TODO(user): Add simple overview of use/purpose
+Workload Manager is used move AKS workloads between different node pools using affinity. 
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+Some applications cannot take full advantage of the Kubernetes high-availability concepts. This CRD has been designed to manage these workloads. 
+
+Based on the YAML you provide, the affinity will be adjusted to change the provided key and value. Kubernetes will the re-schedule the workload based on the updated configuration.
+
+It can be thought of as a blue/green deployment pattern, but all within a single AKS cluster (for example 2 node pools, one green, one blue)
 
 ## Getting Started
 
 ### Prerequisites
-- go version v1.22.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
+- Access to a Azure Kubernetes Service 1.26+
+- One or more Deployments or Statefulsets which are scheduled with node affinity 
+- A Managed Identity with AKS Contributor Role for the cluster
+
+### Deployment
+Helm chart is recommended:
+```
+cd charts/workloadmanager
+helm install workloadmanager .
+```
+
+#### Verification
+```
+helm list --filter 'workloadmanager' 
+kubectl get crd workloadmanagers.k8smanageers.greyridge.com
+```
+
+### Configuration
+To activate the CRD configuration, apply a YAML
+
+```yaml
+apiVersion: k8smanageers.greyridge.com/v1
+kind: WorkloadManager
+metadata:
+  labels:
+    app.kubernetes.io/name: workloadmanager
+    app.kubernetes.io/managed-by: kustomize
+  name: workloadmanager-sample
+spec:
+  # Subscription ID of the cluster
+  subscriptionId: "3e54eb54-xxxx-yyyy-zzzz-d7b190cd45cf" 
+  
+  # Resource group containing the cluster
+  resourceGroup: "node-upgrader"
+  
+  # The name of the cluster
+  clusterName: "lm-cluster"
+  
+  # When this flag is true, if an error occurs, the CRD will ask Kubernetes to retry it automatically
+  # This will result in the CRD being re-executed with the current configuration.
+  # When this flag is false, the CRD will only be executed when the configuration is new/changed.
+  retryOnError: false
+  
+  # When this flag is true, no changes will be executed, only logged
+  testMode: false
+  
+  # A list of procedures (a list of workloads to move)
+  procedures:
+      # A human-friendly description 
+    - description: "move-services"
+      # The type of resource to change: deployment|statefulset
+      type: "deployment"
+      # The namespace that contains the resource
+      namespace: "my-app-ns"
+      # A list of the resources to change.∑
+      workloads:
+        - "app1"
+        - "app2"
+        - "app3"
+      # The node affinity to change.
+      #    key: The key/label
+      #    initial: The existing value of this key (used for verification/rollback)
+      #    target: The target value for this key
+      affinity:
+        key: "agentpool"
+        initial: "servicesblue"
+        target: "servicesglas"
+
+```
+
 
 ### To Deploy on the cluster
 **Build and push your image to the location specified by `IMG`:**
