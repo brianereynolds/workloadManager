@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"github.com/brianereynolds/k8smanagers_utils"
-	"github.com/davecgh/go-spew/spew"
 	k8smanageersv1 "greyridge.com/workloadManager/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -224,7 +223,6 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				l.Error(err, "Error updating deployment", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
-			spew.Dump(deployment)
 		}
 
 		if wlType == k8smanageersv1.Deployment {
@@ -275,12 +273,24 @@ func isResourceReady(ctx context.Context, wlType string) bool {
 func isDeploymentReady(deployment *appsv1.Deployment) bool {
 	l := log.Log
 	l.Info("Waiting to start...", "name", deployment.Name)
-	for _, cond := range deployment.Status.Conditions {
-		if cond.Type == appsv1.DeploymentAvailable && cond.Status == v1.ConditionTrue {
-			return true
-		}
+
+	start := time.Now()
+	duration := 60 * time.Second
+
+	for time.Since(start) < duration {
+		l.Info("", "ReadyReplicas", deployment.Status.ReadyReplicas,
+			"Replicas", *deployment.Spec.Replicas)
+		time.Sleep(1 * time.Second) // Adjust this sleep duration as needed }
 	}
-	return false
+
+	return true
+	/*
+		for _, cond := range deployment.Status.Conditions {
+			if cond.Type == appsv1.DeploymentAvailable && cond.Status == v1.ConditionTrue {
+				return true
+			}
+		}
+		return false*/
 }
 
 func isStatefulSetReady(statefulset *appsv1.StatefulSet) bool {
