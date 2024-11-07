@@ -230,7 +230,7 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 		}
 
 		if procedure.Timeout == 0 {
-			procedure.Timeout = 60
+			procedure.Timeout = 600
 		}
 		timeout := time.Duration(procedure.Timeout) * time.Second
 		l.Info("Starting to wait", "name", workload, "timeout", timeout)

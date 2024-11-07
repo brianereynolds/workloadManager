@@ -78,9 +78,10 @@ spec:
         key: "agentpool"
         initial: "servicesblue"
         target: "servicesglas"
-      # The timeout, in seconds, to wait for the pods to activiate
-      # If not provided, defaults to 60
-      timeout: 60
+      # The time, in seconds, to wait for the pods to activate after changing the node affinity.
+      # If the pod doesn't activate within this time period, it will move to the next 
+      # workload in the list (the pod might well activate in time). If not provided, defaults to 600
+      timeout: 600
 
 ```
 
