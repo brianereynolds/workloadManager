@@ -225,10 +225,10 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 			}
 		}
 
+		ctx = context.WithValue(ctx, "namespace", procedure.Namespace)
+		ctx = context.WithValue(ctx, "clientset", clientset)
 		if wlType == k8smanageersv1.Deployment {
-			ctx = context.WithValue(ctx, "deployment", deployment)
-			ctx = context.WithValue(ctx, "clientset", clientset)
-			ctx = context.WithValue(ctx, "namespace", procedure.Namespace)
+			ctx = context.WithValue(ctx, "resource", deployment)
 		}
 		if wlType == k8smanageersv1.StatefulSet {
 			ctx = context.WithValue(ctx, "resource", statefulset)
@@ -265,7 +265,7 @@ func isResourceReady(ctx context.Context, wlType string) bool {
 	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
 
 	if wlType == k8smanageersv1.Deployment {
-		deployment := ctx.Value("deployment").(*appsv1.Deployment)
+		deployment := ctx.Value("resource").(*appsv1.Deployment)
 		return isDeploymentReady(clientset, namespace, deployment)
 	}
 	if wlType == k8smanageersv1.StatefulSet {
