@@ -289,7 +289,7 @@ func isDeploymentReady(clientset *kubernetes.Clientset, namespace string, deploy
 			l.Error(err, "Could not monitor")
 		}
 
-		l.Info("", "ReadyReplicas", mondeployment.Status.ReadyReplicas,
+		l.Info("", "Replicas", mondeployment.Status.Replicas,
 			"Replicas", *mondeployment.Spec.Replicas)
 		time.Sleep(1 * time.Second) // Adjust this sleep duration as needed }
 	}
