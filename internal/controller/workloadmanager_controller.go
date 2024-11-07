@@ -126,7 +126,7 @@ func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clie
 	return nil
 }
 
-func (r *WorkloadManagerReconciler) checkNodeAffinity(ctx context.Context, affinity *v1.NodeAffinity, procedure k8smanageersv1.Procedure, wlName string) error {
+func (r *WorkloadManagerReconciler) checkNodeAffinity(affinity *v1.NodeAffinity, procedure k8smanageersv1.Procedure, wlName string) error {
 	l := log.Log
 
 	if affinity == nil {
@@ -241,7 +241,7 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 	return nil
 }
 
-func (r *WorkloadManagerReconciler) createNodeAffinity(ctx context.Context, key string, value string) *v1.NodeAffinity {
+func (r *WorkloadManagerReconciler) createNodeAffinity(key string, value string) *v1.NodeAffinity {
 	nodeAffinity := &v1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{
@@ -284,13 +284,13 @@ func isDeploymentReady(clientset *kubernetes.Clientset, namespace string, deploy
 
 	for time.Since(start) < duration {
 
-		deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), deployment.Name, metav1.GetOptions{})
+		mondeployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), deployment.Name, metav1.GetOptions{})
 		if err != nil {
 			l.Error(err, "Could not monitor")
 		}
 
-		l.Info("", "ReadyReplicas", deployment.Status.ReadyReplicas,
-			"Replicas", *deployment.Spec.Replicas)
+		l.Info("", "ReadyReplicas", mondeployment.Status.ReadyReplicas,
+			"Replicas", *mondeployment.Spec.Replicas)
 		time.Sleep(1 * time.Second) // Adjust this sleep duration as needed }
 	}
 
