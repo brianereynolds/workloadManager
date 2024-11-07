@@ -117,7 +117,7 @@ func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clie
 			affinity = deployment.Spec.Template.Spec.Affinity.NodeAffinity
 		}
 
-		err := r.checkNodeAffinity(ctx, affinity, procedure, workload)
+		err := r.checkNodeAffinity(affinity, procedure, workload)
 		if err != nil {
 			return err
 		}
@@ -202,7 +202,7 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				return err
 			}
 
-			statefulset.Spec.Template.Spec.Affinity.NodeAffinity = r.createNodeAffinity(ctx, procedure.Affinity.Key, procedure.Affinity.Target)
+			statefulset.Spec.Template.Spec.Affinity.NodeAffinity = r.createNodeAffinity(procedure.Affinity.Key, procedure.Affinity.Target)
 
 			_, err = clientset.AppsV1().StatefulSets(procedure.Namespace).Update(ctx, statefulset, metav1.UpdateOptions{})
 			if err != nil {
@@ -216,7 +216,7 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				l.Error(err, "Deployment not found", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
-			deployment.Spec.Template.Spec.Affinity.NodeAffinity = r.createNodeAffinity(ctx, procedure.Affinity.Key, procedure.Affinity.Target)
+			deployment.Spec.Template.Spec.Affinity.NodeAffinity = r.createNodeAffinity(procedure.Affinity.Key, procedure.Affinity.Target)
 
 			deployment, err = clientset.AppsV1().Deployments(procedure.Namespace).Update(ctx, deployment, metav1.UpdateOptions{})
 			if err != nil {
