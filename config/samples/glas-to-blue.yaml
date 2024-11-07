@@ -40,5 +40,6 @@ spec:
         key: "agentpool"
         initial: "centralglas"
         target: "centralblue"
+      timeout: 2
 
 

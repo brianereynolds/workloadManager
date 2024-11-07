@@ -233,9 +233,11 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 		if wlType == k8smanageersv1.StatefulSet {
 			ctx = context.WithValue(ctx, "resource", statefulset)
 		}
+		timeout := time.Duration(procedure.Timeout) * time.Second
+		l.Info("Starting to wait", "name", workload, "timeout", timeout)
 		waitForConditionWithTimeout(func() bool {
 			return isResourceReady(ctx, wlType)
-		}, 5*time.Second, 60*time.Second)
+		}, 5*time.Second, timeout)
 	}
 
 	return nil
