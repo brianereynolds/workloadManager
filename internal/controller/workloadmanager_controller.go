@@ -270,7 +270,7 @@ func isResourceReady(ctx context.Context, wlType string) bool {
 	}
 	if wlType == k8smanageersv1.StatefulSet {
 		statefulset := ctx.Value("resource").(*appsv1.StatefulSet)
-		return isStatefulSetReady(statefulset)
+		return isStatefulSetReady(clientset, namespace, statefulset)
 	}
 	return false
 }
@@ -279,35 +279,30 @@ func isDeploymentReady(clientset *kubernetes.Clientset, namespace string, deploy
 	l := log.Log
 	l.Info("Waiting to start...", "name", deployment.Name)
 
-	start := time.Now()
-	duration := 60 * time.Second
-
-	for time.Since(start) < duration {
-
-		mondeployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), deployment.Name, metav1.GetOptions{})
-		if err != nil {
-			l.Error(err, "Could not monitor")
-		}
-
-		l.Info("", "Replicas", mondeployment.Status.Replicas,
-			"Replicas", *mondeployment.Spec.Replicas)
-		time.Sleep(1 * time.Second) // Adjust this sleep duration as needed }
+	mondeployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), deployment.Name, metav1.GetOptions{})
+	if err != nil {
+		l.Error(err, "Could not monitor")
 	}
 
-	return true
-	/*
-		for _, cond := range deployment.Status.Conditions {
-			if cond.Type == appsv1.DeploymentAvailable && cond.Status == v1.ConditionTrue {
-				return true
-			}
-		}
-		return false*/
+	if mondeployment.Status.Replicas == *mondeployment.Spec.Replicas {
+		return true
+	}
+	return false
 }
 
-func isStatefulSetReady(statefulset *appsv1.StatefulSet) bool {
+func isStatefulSetReady(clientset *kubernetes.Clientset, namespace string, statefulset *appsv1.StatefulSet) bool {
 	l := log.Log
 	l.Info("Waiting to start...", "name", statefulset.Spec.ServiceName)
-	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas
+
+	monstatefulset, err := clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), statefulset.Name, metav1.GetOptions{})
+	if err != nil {
+		l.Error(err, "Could not monitor")
+	}
+
+	if monstatefulset.Status.Replicas == *monstatefulset.Spec.Replicas {
+		return true
+	}
+	return false
 }
 
 func waitForConditionWithTimeout(condFunc func() bool, interval, timeout time.Duration) bool {
