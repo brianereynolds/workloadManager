@@ -76,11 +76,6 @@ func (r *WorkloadManagerReconciler) validate(ctx context.Context, wlManager *k8s
 	}
 
 	for _, procedure := range wlManager.Spec.Procedures {
-
-		if procedure.Timeout == 0 {
-			procedure.Timeout = 600
-		}
-
 		if procedure.Type == k8smanageersv1.StatefulSet {
 			err = r.validateProcedures(ctx, clientset, procedure, k8smanageersv1.StatefulSet)
 		}
@@ -232,6 +227,10 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 		}
 		if wlType == k8smanageersv1.StatefulSet {
 			ctx = context.WithValue(ctx, "resource", statefulset)
+		}
+
+		if procedure.Timeout == 0 {
+			procedure.Timeout = 60
 		}
 		timeout := time.Duration(procedure.Timeout) * time.Second
 		l.Info("Starting to wait", "name", workload, "timeout", timeout)
