@@ -226,7 +226,9 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 		}
 
 		if wlType == k8smanageersv1.Deployment {
-			ctx = context.WithValue(ctx, "resource", deployment)
+			ctx = context.WithValue(ctx, "deployment", deployment)
+			ctx = context.WithValue(ctx, "clientset", clientset)
+			ctx = context.WithValue(ctx, "namespace", procedure.Namespace)
 		}
 		if wlType == k8smanageersv1.StatefulSet {
 			ctx = context.WithValue(ctx, "resource", statefulset)
@@ -259,9 +261,12 @@ func (r *WorkloadManagerReconciler) createNodeAffinity(ctx context.Context, key 
 }
 
 func isResourceReady(ctx context.Context, wlType string) bool {
+	namespace := ctx.Value("namespace").(string)
+	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
+
 	if wlType == k8smanageersv1.Deployment {
-		deployment := ctx.Value("resource").(*appsv1.Deployment)
-		return isDeploymentReady(deployment)
+		deployment := ctx.Value("deployment").(*appsv1.Deployment)
+		return isDeploymentReady(clientset, namespace, deployment)
 	}
 	if wlType == k8smanageersv1.StatefulSet {
 		statefulset := ctx.Value("resource").(*appsv1.StatefulSet)
@@ -270,7 +275,7 @@ func isResourceReady(ctx context.Context, wlType string) bool {
 	return false
 }
 
-func isDeploymentReady(deployment *appsv1.Deployment) bool {
+func isDeploymentReady(clientset *kubernetes.Clientset, namespace string, deployment *appsv1.Deployment) bool {
 	l := log.Log
 	l.Info("Waiting to start...", "name", deployment.Name)
 
@@ -278,6 +283,12 @@ func isDeploymentReady(deployment *appsv1.Deployment) bool {
 	duration := 60 * time.Second
 
 	for time.Since(start) < duration {
+
+		deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), deployment.Name, metav1.GetOptions{})
+		if err != nil {
+			l.Error(err, "Could not monitor")
+		}
+
 		l.Info("", "ReadyReplicas", deployment.Status.ReadyReplicas,
 			"Replicas", *deployment.Spec.Replicas)
 		time.Sleep(1 * time.Second) // Adjust this sleep duration as needed }
