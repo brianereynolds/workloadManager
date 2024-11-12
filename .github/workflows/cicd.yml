@@ -4,7 +4,7 @@ on:
     branches:
       - master
 jobs:
-  build:
+  docker-build:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,3 +25,31 @@ jobs:
         with:
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/workload-manager:latest
+  helm-upload:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Chart
+        working-directory: charts/workloadmanager
+        run: |
+          helm package .
+
+      - name: Helm Index
+        working-directory: charts/workloadmanager
+        run: |
+          curl https://k8smanagers.blob.core.windows.net/helm/index.yaml > index-temp.yaml
+          helm repo index --url https://k8smanagers.blob.core.windows.net/helm/ . --merge index-temp.yaml
+          mv -f index-temp.yaml index.yaml
+
+      - name: Helm Upload
+        working-directory: charts/workloadmanager
+        env:
+          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+        run: |
+          az storage blob upload --container-name helm --file index.yaml --name index.yaml --overwrite
+          az storage blob upload --container-name helm --file *.tgz --name *.tgz --overwrite
