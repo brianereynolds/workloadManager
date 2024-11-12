@@ -35,7 +35,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	k8smanageersv1 "greyridge.com/workloadManager/api/v1"
+	k8smanagersv1 "greyridge.com/workloadManager/api/v1"
 	"greyridge.com/workloadManager/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
@@ -48,7 +48,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(k8smanageersv1.AddToScheme(scheme))
+	utilruntime.Must(k8smanagersv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

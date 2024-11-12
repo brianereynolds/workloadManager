@@ -25,14 +25,14 @@ helm install workloadmanager .
 #### Verification
 ```
 helm list --filter 'workloadmanager' 
-kubectl get crd workloadmanagers.k8smanageers.greyridge.com
+kubectl get crd workloadmanagers.k8smanagers.greyridge.com
 ```
 
 ### Configuration
 To activate the CRD configuration, apply a YAML
 
 ```yaml
-apiVersion: k8smanageers.greyridge.com/v1
+apiVersion: k8smanagers.greyridge.com/v1
 kind: WorkloadManager
 metadata:
   labels:

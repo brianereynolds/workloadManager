@@ -1,23 +1,17 @@
-# permissions for end users to edit workloadmanagers.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  name: {{ include "workloadmanager.fullname" . }}-workloadmanager-viewer-role
   labels:
-    app.kubernetes.io/name: workloadmanager
-    app.kubernetes.io/managed-by: kustomize
-  name: workloadmanager-editor-role
+  {{- include "workloadmanager.labels" . | nindent 4 }}
 rules:
 - apiGroups:
   - k8smanagers.greyridge.com
   resources:
   - workloadmanagers
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - k8smanagers.greyridge.com

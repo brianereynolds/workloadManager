@@ -13,7 +13,7 @@ resources:
     namespaced: true
   controller: true
   domain: greyridge.com
-  group: k8smanageers
+  group: k8smanagers
   kind: WorkloadManager
   path: greyridge.com/workloadManager/api/v1
   version: v1

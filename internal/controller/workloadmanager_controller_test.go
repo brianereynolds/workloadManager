@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	k8smanageersv1 "greyridge.com/workloadManager/api/v1"
+	k8smanagersv1 "greyridge.com/workloadManager/api/v1"
 )
 
 var _ = Describe("WorkloadManager Controller", func() {
@@ -40,13 +40,13 @@ var _ = Describe("WorkloadManager Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		workloadmanager := &k8smanageersv1.WorkloadManager{}
+		workloadmanager := &k8smanagersv1.WorkloadManager{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind WorkloadManager")
 			err := k8sClient.Get(ctx, typeNamespacedName, workloadmanager)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &k8smanageersv1.WorkloadManager{
+				resource := &k8smanagersv1.WorkloadManager{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -59,7 +59,7 @@ var _ = Describe("WorkloadManager Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &k8smanageersv1.WorkloadManager{}
+			resource := &k8smanagersv1.WorkloadManager{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 

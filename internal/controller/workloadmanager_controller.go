@@ -20,7 +20,7 @@ import (
 	"context"
 	"errors"
 	"github.com/brianereynolds/k8smanagers_utils"
-	k8smanageersv1 "greyridge.com/workloadManager/api/v1"
+	k8smanagersv1 "greyridge.com/workloadManager/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,7 +40,7 @@ type WorkloadManagerReconciler struct {
 	clientset *kubernetes.Clientset
 }
 
-func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager *k8smanageersv1.WorkloadManager) (*kubernetes.Clientset, error) {
+func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager *k8smanagersv1.WorkloadManager) (*kubernetes.Clientset, error) {
 	l := log.Log
 
 	if r.clientset != nil {
@@ -69,33 +69,33 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 }
 
 // validate will check the contents of the Workload Manager configuration
-func (r *WorkloadManagerReconciler) validate(ctx context.Context, wlManager *k8smanageersv1.WorkloadManager) error {
+func (r *WorkloadManagerReconciler) validate(ctx context.Context, wlManager *k8smanagersv1.WorkloadManager) error {
 	clientset, err := r.getClientSet(ctx, wlManager)
 	if err != nil {
 		return err
 	}
 
 	for _, procedure := range wlManager.Spec.Procedures {
-		if procedure.Type == k8smanageersv1.StatefulSet {
-			err = r.validateProcedures(ctx, clientset, procedure, k8smanageersv1.StatefulSet)
+		if procedure.Type == k8smanagersv1.StatefulSet {
+			err = r.validateProcedures(ctx, clientset, procedure, k8smanagersv1.StatefulSet)
 		}
 
-		if procedure.Type == k8smanageersv1.Deployment {
-			err = r.validateProcedures(ctx, clientset, procedure, k8smanageersv1.Deployment)
+		if procedure.Type == k8smanagersv1.Deployment {
+			err = r.validateProcedures(ctx, clientset, procedure, k8smanagersv1.Deployment)
 		}
 	}
 
 	return nil
 }
 
-func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clientset *kubernetes.Clientset, procedure k8smanageersv1.Procedure, wlType string) error {
+func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clientset *kubernetes.Clientset, procedure k8smanagersv1.Procedure, wlType string) error {
 	l := log.Log
 
 	for _, workload := range procedure.Workloads {
 
 		var affinity *v1.NodeAffinity
 
-		if wlType == k8smanageersv1.StatefulSet {
+		if wlType == k8smanagersv1.StatefulSet {
 			statefulset, err := clientset.AppsV1().StatefulSets(procedure.Namespace).Get(ctx, workload, metav1.GetOptions{})
 			if err != nil {
 				l.Error(err, "Stateful not found", "namespace", procedure.Namespace, "name", workload)
@@ -103,7 +103,7 @@ func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clie
 			}
 			affinity = statefulset.Spec.Template.Spec.Affinity.NodeAffinity
 		}
-		if wlType == k8smanageersv1.Deployment {
+		if wlType == k8smanagersv1.Deployment {
 			deployment, err := clientset.AppsV1().Deployments(procedure.Namespace).Get(ctx, workload, metav1.GetOptions{})
 			if err != nil {
 				l.Error(err, "Deployment not found", "namespace", procedure.Namespace, "name", workload)
@@ -121,7 +121,7 @@ func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clie
 	return nil
 }
 
-func (r *WorkloadManagerReconciler) checkNodeAffinity(affinity *v1.NodeAffinity, procedure k8smanageersv1.Procedure, wlName string) error {
+func (r *WorkloadManagerReconciler) checkNodeAffinity(affinity *v1.NodeAffinity, procedure k8smanagersv1.Procedure, wlName string) error {
 	l := log.Log
 
 	if affinity == nil {
@@ -151,7 +151,7 @@ func (r *WorkloadManagerReconciler) checkNodeAffinity(affinity *v1.NodeAffinity,
 	return nil
 }
 
-func (r *WorkloadManagerReconciler) apply(ctx context.Context, wlManager *k8smanageersv1.WorkloadManager) error {
+func (r *WorkloadManagerReconciler) apply(ctx context.Context, wlManager *k8smanagersv1.WorkloadManager) error {
 	l := log.Log
 
 	clientset, err := r.getClientSet(ctx, wlManager)
@@ -166,12 +166,12 @@ func (r *WorkloadManagerReconciler) apply(ctx context.Context, wlManager *k8sman
 			continue
 		}
 
-		if procedure.Type == k8smanageersv1.StatefulSet {
-			err = r.updateAffinity(ctx, clientset, procedure, k8smanageersv1.StatefulSet)
+		if procedure.Type == k8smanagersv1.StatefulSet {
+			err = r.updateAffinity(ctx, clientset, procedure, k8smanagersv1.StatefulSet)
 		}
 
-		if procedure.Type == k8smanageersv1.Deployment {
-			err = r.updateAffinity(ctx, clientset, procedure, k8smanageersv1.Deployment)
+		if procedure.Type == k8smanagersv1.Deployment {
+			err = r.updateAffinity(ctx, clientset, procedure, k8smanagersv1.Deployment)
 		}
 
 		if err != nil {
@@ -182,7 +182,7 @@ func (r *WorkloadManagerReconciler) apply(ctx context.Context, wlManager *k8sman
 	return nil
 }
 
-func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientset *kubernetes.Clientset, procedure k8smanageersv1.Procedure, wlType string) error {
+func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientset *kubernetes.Clientset, procedure k8smanagersv1.Procedure, wlType string) error {
 	l := log.Log
 
 	var deployment *appsv1.Deployment
@@ -190,7 +190,7 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 	var err error
 
 	for _, workload := range procedure.Workloads {
-		if wlType == k8smanageersv1.StatefulSet {
+		if wlType == k8smanagersv1.StatefulSet {
 			statefulset, err = clientset.AppsV1().StatefulSets(procedure.Namespace).Get(ctx, workload, metav1.GetOptions{})
 			if err != nil {
 				l.Error(err, "Stateful not found", "namespace", procedure.Namespace, "name", workload)
@@ -205,7 +205,7 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				return err
 			}
 		}
-		if wlType == k8smanageersv1.Deployment {
+		if wlType == k8smanagersv1.Deployment {
 			deployment, err = clientset.AppsV1().Deployments(procedure.Namespace).Get(ctx, workload, metav1.GetOptions{})
 			if err != nil {
 				l.Error(err, "Deployment not found", "namespace", procedure.Namespace, "name", workload)
@@ -222,10 +222,10 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 
 		ctx = context.WithValue(ctx, "namespace", procedure.Namespace)
 		ctx = context.WithValue(ctx, "clientset", clientset)
-		if wlType == k8smanageersv1.Deployment {
+		if wlType == k8smanagersv1.Deployment {
 			ctx = context.WithValue(ctx, "resource", deployment)
 		}
-		if wlType == k8smanageersv1.StatefulSet {
+		if wlType == k8smanagersv1.StatefulSet {
 			ctx = context.WithValue(ctx, "resource", statefulset)
 		}
 
@@ -265,11 +265,11 @@ func isResourceReady(ctx context.Context, wlType string) bool {
 	namespace := ctx.Value("namespace").(string)
 	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
 
-	if wlType == k8smanageersv1.Deployment {
+	if wlType == k8smanagersv1.Deployment {
 		deployment := ctx.Value("resource").(*appsv1.Deployment)
 		return isDeploymentReady(clientset, namespace, deployment)
 	}
-	if wlType == k8smanageersv1.StatefulSet {
+	if wlType == k8smanagersv1.StatefulSet {
 		statefulset := ctx.Value("resource").(*appsv1.StatefulSet)
 		return isStatefulSetReady(clientset, namespace, statefulset)
 	}
@@ -326,9 +326,9 @@ func waitForConditionWithTimeout(condFunc func() bool, interval, timeout time.Du
 	}
 }
 
-// +kubebuilder:rbac:groups=k8smanageers.greyridge.com,resources=workloadmanagers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=k8smanageers.greyridge.com,resources=workloadmanagers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=k8smanageers.greyridge.com,resources=workloadmanagers/finalizers,verbs=update
+// +kubebuilder:rbac:groups=k8smanagers.greyridge.com,resources=workloadmanagers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=k8smanagers.greyridge.com,resources=workloadmanagers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=k8smanagers.greyridge.com,resources=workloadmanagers/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -342,7 +342,7 @@ func (r *WorkloadManagerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	l := log.Log
 	l.Info("Enter Reconcile")
 
-	var wlManager k8smanageersv1.WorkloadManager
+	var wlManager k8smanagersv1.WorkloadManager
 	if err := r.Get(ctx, req.NamespacedName, &wlManager); err != nil {
 		panic(err.Error())
 	}
@@ -366,6 +366,6 @@ func (r *WorkloadManagerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 // SetupWithManager sets up the controller with the Manager.
 func (r *WorkloadManagerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&k8smanageersv1.WorkloadManager{}).
+		For(&k8smanagersv1.WorkloadManager{}).
 		Complete(r)
 }

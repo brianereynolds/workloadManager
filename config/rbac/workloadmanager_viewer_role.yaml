@@ -8,7 +8,7 @@ metadata:
   name: workloadmanager-viewer-role
 rules:
 - apiGroups:
-  - k8smanageers.greyridge.com
+  - k8smanagers.greyridge.com
   resources:
   - workloadmanagers
   verbs:
@@ -16,7 +16,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - k8smanageers.greyridge.com
+  - k8smanagers.greyridge.com
   resources:
   - workloadmanagers/status
   verbs:
