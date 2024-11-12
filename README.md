@@ -16,10 +16,11 @@ It can be thought of as a blue/green deployment pattern, but all within a single
 - A Managed Identity with AKS Contributor Role for the cluster
 
 ### Deployment
-Helm chart is recommended:
+Helm chart:
 ```
-cd charts/workloadmanager
-helm install workloadmanager .
+kubectl create ns operations
+helm repo add k8smanagers https://k8smanagers.blob.core.windows.net/helm/
+helm install workloadmanager k8smanagers/workloadmanager -n operations
 ```
 
 #### Verification
@@ -105,6 +106,9 @@ affinity:
 
 ### Uninstall
 Uninstall the helm chart
+```
+helm uninstall -n operations workloadlmanager
+```
 
 ## License
 
