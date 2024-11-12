@@ -4,6 +4,9 @@ on:
     branches:
       - master
 jobs:
+  create-helm:
+    runs-on: ubuntu-latest
+
   docker-build:
     runs-on: ubuntu-latest
 
@@ -32,6 +35,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Helmify
+        run: |
+          make helm
 
       - name: Build Chart
         working-directory: charts/workloadmanager
