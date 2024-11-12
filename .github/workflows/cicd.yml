@@ -4,9 +4,6 @@ on:
     branches:
       - master
 jobs:
-  create-helm:
-    runs-on: ubuntu-latest
-
   docker-build:
     runs-on: ubuntu-latest
 
