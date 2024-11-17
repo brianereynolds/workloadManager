@@ -1,0 +1,21 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "workloadmanager.fullname" . }}-workloadmanager-viewer-role
+  labels:
+  {{- include "workloadmanager.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - k8smanagers.greyridge.com
+  resources:
+  - workloadmanagers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - k8smanagers.greyridge.com
+  resources:
+  - workloadmanagers/status
+  verbs:
+  - get

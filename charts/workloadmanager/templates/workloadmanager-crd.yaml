@@ -1,0 +1,98 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: workloadmanagers.k8smanagers.greyridge.com
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.1
+  labels:
+  {{- include "workloadmanager.labels" . | nindent 4 }}
+spec:
+  group: k8smanagers.greyridge.com
+  names:
+    kind: WorkloadManager
+    listKind: WorkloadManagerList
+    plural: workloadmanagers
+    singular: workloadmanager
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: WorkloadManager is the Schema for the workloadmanagers API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: WorkloadManagerSpec defines the desired state of WorkloadManager
+            properties:
+              clusterName:
+                type: string
+              procedures:
+                items:
+                  properties:
+                    affinity:
+                      properties:
+                        initial:
+                          type: string
+                        key:
+                          type: string
+                        target:
+                          type: string
+                      type: object
+                    description:
+                      type: string
+                    namespace:
+                      type: string
+                    timeout:
+                      type: integer
+                    type:
+                      type: string
+                    workloads:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - affinity
+                  - workloads
+                  type: object
+                type: array
+              resourceGroup:
+                type: string
+              retryOnError:
+                type: boolean
+              subscriptionId:
+                type: string
+              testMode:
+                type: boolean
+            required:
+            - procedures
+            type: object
+          status:
+            description: WorkloadManagerStatus defines the observed state of WorkloadManager
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
