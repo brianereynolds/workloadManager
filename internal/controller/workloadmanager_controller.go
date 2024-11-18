@@ -49,8 +49,9 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 
 	aksClient, err := k8smanagers_utils.GetManagedClusterClient(ctx, wlManager.Spec.SubscriptionID)
 
-	kubeConfigResp, err := aksClient.ListClusterAdminCredentials(ctx, wlManager.Spec.ResourceGroup,
-		wlManager.Spec.ClusterName, nil)
+	kubeConfigResp, err := aksClient.ListClusterUserCredentials(ctx, wlManager.Spec.ResourceGroup, wlManager.Spec.ClusterName, nil)
+	/*kubeConfigResp, err := aksClient.ListClusterAdminCredentials(ctx, wlManager.Spec.ResourceGroup,
+	wlManager.Spec.ClusterName, nil)*/
 	if err != nil {
 		l.Error(err, "failed to get AKS credentials")
 		return nil, err
