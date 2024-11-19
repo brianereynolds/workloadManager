@@ -26,15 +26,17 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o ma
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 
-FROM alpine
-#FROM gcr.io/distroless/static:nonroot
+FROM debian
 WORKDIR /
 COPY --from=builder /workspace/manager .
 
-RUN cat ./bin/linux_bash/deb_install | sh
+RUN apt-get update
+RUN apt-get -y install curl bash
+RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
 COPY bin/linux_amd64/kubelogin /usr/local/bin/kubelogin
-RUN touch /kubeconfig && chmod 777 /kubeconfig
-RUN mkdir -p /.kube/cache && chmod -R 777 /.kube/
+RUN mkdir /.azure && chmod 777 /.azure
+RUN mkdir /.kube && chmod 777 /.kube
 
 USER 65532:65532
 

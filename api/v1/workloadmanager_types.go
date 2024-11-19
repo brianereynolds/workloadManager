@@ -27,6 +27,14 @@ const (
 	Deployment  = "deployment"
 )
 
+type SPNLoginType string
+
+const (
+	ListClusterAdminCredentials = "listClusterAdminCredentials"
+	AzCli                       = "azCli"
+	ListClusterUserCredentials  = "listClusterUserCredentials"
+)
+
 type Affinity struct {
 	Key     string `json:"key,omitempty"`
 	Initial string `json:"initial,omitempty"`
@@ -47,6 +55,7 @@ type WorkloadManagerSpec struct {
 	SubscriptionID string      `json:"subscriptionId,omitempty"`
 	ResourceGroup  string      `json:"resourceGroup,omitempty"`
 	ClusterName    string      `json:"clusterName,omitempty"`
+	SPNLoginType   string      `json:"spnLoginType,omitempty"`
 	RetryOnError   bool        `json:"retryOnError,omitempty"`
 	TestMode       bool        `json:"testMode,omitempty"`
 	Procedures     []Procedure `json:"procedures"`

@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"os/exec"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -48,17 +49,57 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 	}
 
 	aksClient, err := k8smanagers_utils.GetManagedClusterClient(ctx, wlManager.Spec.SubscriptionID)
+	var kubeconfig []byte
 
-	kubeConfigResp, err := aksClient.ListClusterUserCredentials(ctx, wlManager.Spec.ResourceGroup, wlManager.Spec.ClusterName, nil)
-	/*kubeConfigResp, err := aksClient.ListClusterAdminCredentials(ctx, wlManager.Spec.ResourceGroup,
-	wlManager.Spec.ClusterName, nil)*/
-	if err != nil {
-		l.Error(err, "failed to get AKS credentials")
-		return nil, err
+	if wlManager.Spec.SPNLoginType == k8smanagersv1.ListClusterAdminCredentials {
+		kubeConfigResp, err := aksClient.ListClusterAdminCredentials(ctx, wlManager.Spec.ResourceGroup,
+			wlManager.Spec.ClusterName, nil)
+		if err != nil {
+			l.Error(err, "failed to get AKS credentials using "+k8smanagersv1.ListClusterAdminCredentials)
+			return nil, err
+		}
+
+		kubeconfig = kubeConfigResp.Kubeconfigs[0].Value
 	}
-	kubeconfig := kubeConfigResp.Kubeconfigs[0].Value
 
-	clientset, err := k8smanagers_utils.GetClientSet(ctx, kubeconfig)
+	if wlManager.Spec.SPNLoginType == k8smanagersv1.ListClusterUserCredentials {
+		kubeConfigResp, err := aksClient.ListClusterUserCredentials(ctx, wlManager.Spec.ResourceGroup, wlManager.Spec.ClusterName, nil)
+		if err != nil {
+			l.Error(err, "failed to get AKS credentials using "+k8smanagersv1.ListClusterUserCredentials)
+			return nil, err
+		}
+
+		kubeconfig = kubeConfigResp.Kubeconfigs[0].Value
+	}
+
+	var kubeconfigpath = "/.kube/config"
+
+	if kubeconfig != nil {
+		_, err = k8smanagers_utils.WriteKubeFile(kubeconfig)
+		if err != nil {
+			l.Error(err, "cannot write kubeconfig")
+			return nil, err
+		}
+	}
+
+	if wlManager.Spec.SPNLoginType == k8smanagersv1.AzCli {
+		cmd := exec.Command("az", "account", "set", "--subscription", wlManager.Spec.SubscriptionID)
+		result, err := cmd.CombinedOutput()
+		if err != nil {
+			l.Error(err, "failed to set subscription using Azure CLI", "error", string(result))
+			return nil, err
+		}
+
+		cmd = exec.Command("az", "aks", "get-credentials", "--resource-group", wlManager.Spec.ResourceGroup,
+			"--name", wlManager.Spec.ClusterName, "--overwrite-existing")
+		result, err = cmd.CombinedOutput()
+		if err != nil {
+			l.Error(err, "Failed to get kubeconfig using Azure CLI", "output", string(result))
+			return nil, err
+		}
+	}
+
+	clientset, err := k8smanagers_utils.GetClientSet(ctx, kubeconfigpath)
 	if err != nil {
 		l.Error(err, "Cannot GetClientSet")
 		return nil, err
@@ -344,6 +385,10 @@ func (r *WorkloadManagerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	l.Info("Enter Reconcile")
 
 	var wlManager k8smanagersv1.WorkloadManager
+
+	// Defaults
+	wlManager.Spec.SPNLoginType = k8smanagersv1.ListClusterAdminCredentials
+
 	if err := r.Get(ctx, req.NamespacedName, &wlManager); err != nil {
 		panic(err.Error())
 	}
