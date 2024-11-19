@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"github.com/brianereynolds/k8smanagers_utils"
+	"github.com/davecgh/go-spew/spew"
 	k8smanagersv1 "greyridge.com/workloadManager/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -351,6 +352,11 @@ func isDeploymentReady(clientset *kubernetes.Clientset, namespace string, deploy
 		l.Error(err, "Could not monitor")
 	}
 
+	l.Info("mondeployment.Status")
+	spew.Dump(mondeployment.Status)
+
+	l.Info("mondeployment.Spec")
+	spew.Dump(mondeployment.Spec)
 	if mondeployment.Status.Replicas == *mondeployment.Spec.Replicas {
 		return true
 	}
