@@ -86,10 +86,7 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 	}
 
 	if wlManager.Spec.SPNLoginType == k8smanagersv1.AzCli {
-		cmd := exec.Command("az", "logout")
-		cmd.CombinedOutput()
-
-		cmd = exec.Command("az", "login", "--service-principal",
+		cmd := exec.Command("az", "login", "--service-principal",
 			"--username", os.Getenv("AZURE_CLIENT_ID"),
 			"--tenant", os.Getenv("AZURE_TENANT_ID"),
 			"--password", os.Getenv("AZURE_CLIENT_SECRET"))
@@ -114,6 +111,14 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 		result, err = cmd.CombinedOutput()
 		if err != nil {
 			l.Error(err, "Failed to get kubeconfig using Azure CLI", "output", string(result))
+			return nil, err
+		}
+
+		cmd = exec.Command("kubelogin", "convert-kubeconfig", "-l", "-azurecli")
+		l.V(3).Info("kubelogin", cmd)
+		result, err = cmd.CombinedOutput()
+		if err != nil {
+			l.Error(err, "Failed to kubelogin", "output", string(result))
 			return nil, err
 		}
 	}
