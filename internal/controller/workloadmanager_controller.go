@@ -50,7 +50,7 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 		return r.clientset, nil
 	}
 
-	l.V(1).Info("Using spnType", wlManager.Spec.SPNLoginType)
+	l.Info("Using " + wlManager.Spec.SPNLoginType)
 
 	aksClient, err := k8smanagers_utils.GetManagedClusterClient(ctx, wlManager.Spec.SubscriptionID)
 	var kubeconfig []byte
@@ -91,7 +91,7 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 			"--username", os.Getenv("AZURE_CLIENT_ID"),
 			"--tenant", os.Getenv("AZURE_TENANT_ID"),
 			"--password", os.Getenv("AZURE_CLIENT_SECRET"))
-		l.V(1).Info("az login", cmd)
+		l.Info("az login: ", "cmd", cmd)
 		result, err := cmd.CombinedOutput()
 		if err != nil {
 			l.Error(err, "failed to az login using Azure CLI", "error", string(result))
@@ -99,7 +99,7 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 		}
 
 		cmd = exec.Command("az", "account", "set", "--subscription", wlManager.Spec.SubscriptionID)
-		l.V(1).Info("az account set sub", cmd)
+		l.V(1).Info("az account set sub", "cmd", cmd)
 		result, err = cmd.CombinedOutput()
 		if err != nil {
 			l.Error(err, "failed to set subscription using Azure CLI", "error", string(result))
@@ -108,7 +108,7 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 
 		cmd = exec.Command("az", "aks", "get-credentials", "--resource-group", wlManager.Spec.ResourceGroup,
 			"--name", wlManager.Spec.ClusterName, "--overwrite-existing")
-		l.V(1).Info("az aks get creds", cmd)
+		l.V(1).Info("az aks get creds", "cmd", cmd)
 		result, err = cmd.CombinedOutput()
 		if err != nil {
 			l.Error(err, "Failed to get kubeconfig using Azure CLI", "output", string(result))
@@ -116,7 +116,7 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 		}
 
 		cmd = exec.Command("kubelogin", "convert-kubeconfig", "-l", "azurecli")
-		l.V(1).Info("kubelogin", cmd)
+		l.V(1).Info("kubelogin", "cmd", cmd)
 		result, err = cmd.CombinedOutput()
 		if err != nil {
 			l.Error(err, "Failed to kubelogin", "output", string(result))
