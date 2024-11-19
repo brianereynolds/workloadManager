@@ -75,6 +75,8 @@ spec:
                 type: string
               retryOnError:
                 type: boolean
+              spnLoginType:
+                type: string
               subscriptionId:
                 type: string
               testMode:
