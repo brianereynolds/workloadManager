@@ -49,6 +49,8 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 		return r.clientset, nil
 	}
 
+	l.V(3).Info("Using spnType", wlManager.Spec.SPNLoginType)
+
 	aksClient, err := k8smanagers_utils.GetManagedClusterClient(ctx, wlManager.Spec.SubscriptionID)
 	var kubeconfig []byte
 
@@ -75,7 +77,6 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 
 	var kubeconfigpath = "/.kube/config"
 
-	l.V(3).Info("Using spnType", wlManager.Spec.SPNLoginType)
 	if kubeconfig != nil {
 		_, err = k8smanagers_utils.WriteKubeFile(kubeconfig)
 		if err != nil {
