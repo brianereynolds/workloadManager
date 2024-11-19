@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"os"
 	"os/exec"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -83,8 +84,18 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 	}
 
 	if wlManager.Spec.SPNLoginType == k8smanagersv1.AzCli {
-		cmd := exec.Command("az", "account", "set", "--subscription", wlManager.Spec.SubscriptionID)
+		cmd := exec.Command("az", "login", "--service-principal",
+			"--username", os.Getenv("AZURE_CLIENT_ID"),
+			"--tenant", os.Getenv("AZURE_TENANT_ID"),
+			"--password", os.Getenv("AZURE_CLIENT_SECRET"))
 		result, err := cmd.CombinedOutput()
+		if err != nil {
+			l.Error(err, "failed to az login using Azure CLI", "error", string(result))
+			return nil, err
+		}
+
+		cmd = exec.Command("az", "account", "set", "--subscription", wlManager.Spec.SubscriptionID)
+		result, err = cmd.CombinedOutput()
 		if err != nil {
 			l.Error(err, "failed to set subscription using Azure CLI", "error", string(result))
 			return nil, err
