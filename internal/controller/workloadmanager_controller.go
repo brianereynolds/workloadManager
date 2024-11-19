@@ -75,6 +75,7 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 
 	var kubeconfigpath = "/.kube/config"
 
+	l.V(3).Info("Using spnType", wlManager.Spec.SPNLoginType)
 	if kubeconfig != nil {
 		_, err = k8smanagers_utils.WriteKubeFile(kubeconfig)
 		if err != nil {
