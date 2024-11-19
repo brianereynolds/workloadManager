@@ -92,6 +92,7 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 			"--username", os.Getenv("AZURE_CLIENT_ID"),
 			"--tenant", os.Getenv("AZURE_TENANT_ID"),
 			"--password", os.Getenv("AZURE_CLIENT_SECRET"))
+		l.V(3).Info("az login", cmd)
 		result, err := cmd.CombinedOutput()
 		if err != nil {
 			l.Error(err, "failed to az login using Azure CLI", "error", string(result))
@@ -99,6 +100,7 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 		}
 
 		cmd = exec.Command("az", "account", "set", "--subscription", wlManager.Spec.SubscriptionID)
+		l.V(3).Info("az account set sub", cmd)
 		result, err = cmd.CombinedOutput()
 		if err != nil {
 			l.Error(err, "failed to set subscription using Azure CLI", "error", string(result))
@@ -107,6 +109,7 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 
 		cmd = exec.Command("az", "aks", "get-credentials", "--resource-group", wlManager.Spec.ResourceGroup,
 			"--name", wlManager.Spec.ClusterName, "--overwrite-existing")
+		l.V(3).Info("az aks get creds", cmd)
 		result, err = cmd.CombinedOutput()
 		if err != nil {
 			l.Error(err, "Failed to get kubeconfig using Azure CLI", "output", string(result))
