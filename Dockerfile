@@ -34,6 +34,7 @@ COPY --from=builder /workspace/manager .
 RUN cat ./bin/linux_bash/deb_install | sh
 COPY bin/linux_amd64/kubelogin /usr/local/bin/kubelogin
 RUN touch /kubeconfig && chmod 777 /kubeconfig
+RUN mkdir -p /.kube/cache && chmod -R 777 /.kube/
 
 USER 65532:65532
 
