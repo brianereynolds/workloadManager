@@ -372,7 +372,7 @@ func isDeploymentReady(clientset *kubernetes.Clientset, namespace string, deploy
 
 	for _, condition := range pod.Status.Conditions {
 		if condition.Type == "Ready" && condition.Status == "True" {
-			l.Info("Service started.", "name", deployment.Name)
+			l.Info("Pod started.", "name", deployment.Name)
 			return true
 		}
 	}
@@ -389,7 +389,10 @@ func isStatefulSetReady(clientset *kubernetes.Clientset, namespace string, state
 		l.Error(err, "Could not monitor")
 	}
 
-	if monstatefulset.Status.Replicas == *monstatefulset.Spec.Replicas {
+	expectedReplicas := *monstatefulset.Spec.Replicas
+	readyReplicas := monstatefulset.Status.ReadyReplicas
+	if readyReplicas == expectedReplicas {
+		l.Info("Statefulset ready.", "name", statefulset.Spec.ServiceName)
 		return true
 	}
 	return false
