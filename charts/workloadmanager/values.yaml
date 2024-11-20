@@ -15,8 +15,8 @@ controllerManager:
     imagePullPolicy: Always
     resources:
       limits:
-        cpu: 1000m
-        memory: 1G
+        cpu: 500m
+        memory: 128Mi
       requests:
         cpu: 10m
         memory: 64Mi
@@ -25,6 +25,7 @@ controllerManager:
     annotations: {}
   deployment:
     env:
+    customLabels:
 imagePullSecrets: []
 kubernetesClusterDomain: cluster.local
 metricsService:
