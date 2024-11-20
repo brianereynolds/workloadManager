@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"github.com/brianereynolds/k8smanagers_utils"
-	"github.com/davecgh/go-spew/spew"
 	k8smanagersv1 "greyridge.com/workloadManager/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -50,7 +49,7 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 		return r.clientset, nil
 	}
 
-	l.Info("Using " + wlManager.Spec.SPNLoginType)
+	l.Info("getClientSet using " + wlManager.Spec.SPNLoginType)
 
 	aksClient, err := k8smanagers_utils.GetManagedClusterClient(ctx, wlManager.Spec.SubscriptionID)
 	var kubeconfig []byte
@@ -90,7 +89,7 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 		cmd := exec.Command("az", "login", "--service-principal",
 			"--username", os.Getenv("AZURE_CLIENT_ID"),
 			"--tenant", os.Getenv("AZURE_TENANT_ID"),
-			"--password", os.Getenv("AZURE_CLIENT_SECRET"))
+			"--password", "********")
 		l.Info("az login: ", "cmd", cmd)
 		result, err := cmd.CombinedOutput()
 		if err != nil {
@@ -352,14 +351,31 @@ func isDeploymentReady(clientset *kubernetes.Clientset, namespace string, deploy
 		l.Error(err, "Could not monitor")
 	}
 
-	l.Info("mondeployment.Status")
-	spew.Dump(mondeployment.Status)
-
-	l.Info("mondeployment.Spec")
-	spew.Dump(mondeployment.Spec)
-	if mondeployment.Status.Replicas == *mondeployment.Spec.Replicas {
-		return true
+	// Get the label selector from the deployment
+	labelSelector := metav1.FormatLabelSelector(mondeployment.Spec.Selector)
+	pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil {
+		l.Error(err, "Could not find pod matching", "labelselector", labelSelector)
 	}
+
+	var podname string = "UNKNOWN"
+	if len(pods.Items) > 0 {
+		podname = pods.Items[0].Name
+	}
+
+	// Get the pod
+	pod, err := clientset.CoreV1().Pods(namespace).Get(context.Background(), podname, metav1.GetOptions{})
+	if err != nil {
+		l.Error(err, "Could not find pod named", "podname", podname)
+	}
+
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == "Ready" && condition.Status == "True" {
+			l.Info("Service started.", "name", deployment.Name)
+			return true
+		}
+	}
+
 	return false
 }
 
