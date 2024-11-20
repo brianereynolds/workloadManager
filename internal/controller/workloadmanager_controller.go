@@ -31,6 +31,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"strings"
 	"time"
 )
 
@@ -89,8 +90,8 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 		cmd := exec.Command("az", "login", "--service-principal",
 			"--username", os.Getenv("AZURE_CLIENT_ID"),
 			"--tenant", os.Getenv("AZURE_TENANT_ID"),
-			"--password", "********")
-		l.Info("az login: ", "cmd", cmd)
+			"--password", os.Getenv("AZURE_CLIENT_SECRET"))
+		l.Info("az login: ", "cmd", strings.Replace(cmd.String(), os.Getenv("AZURE_CLIENT_SECRET"), "*********", -1))
 		result, err := cmd.CombinedOutput()
 		if err != nil {
 			l.Error(err, "failed to az login using Azure CLI", "error", string(result))
