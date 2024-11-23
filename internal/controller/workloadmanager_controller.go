@@ -394,9 +394,10 @@ func isStatefulSetReady(clientset *kubernetes.Clientset, namespace string, state
 
 	// Print the status of each pod
 	for _, pod := range pods.Items {
-		l.Info("msg", "Pod Name", pod.Name, "Phase", pod.Status.Phase)
-		for _, condition := range pod.Status.Conditions {
-			l.Info("msg", "Cond T", condition.Type, "Phase", condition.Status)
+		if pod.DeletionTimestamp != nil {
+			// One of the pods in the stateful set is term
+			l.Info("Pod is terminating", "name", pod.Name)
+			return false
 		}
 	}
 
