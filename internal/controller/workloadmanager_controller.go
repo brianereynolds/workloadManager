@@ -372,7 +372,10 @@ func isDeploymentReady(clientset *kubernetes.Clientset, namespace string, deploy
 
 	for _, condition := range pod.Status.Conditions {
 		if condition.Type == "Ready" && condition.Status == "True" {
-			l.Info("Pod started.", "name", deployment.Name)
+			creationTimestamp := pod.ObjectMeta.CreationTimestamp.Time
+			currentTime := time.Now()
+
+			l.Info("Pod started.", "name", deployment.Name, "start-up time", currentTime.Sub(creationTimestamp))
 			return true
 		}
 	}
