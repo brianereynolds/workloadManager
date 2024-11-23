@@ -211,9 +211,8 @@ func (r *WorkloadManagerReconciler) checkNodeAffinity(affinity *v1.NodeAffinity,
 	}
 
 	if checkOk == false {
-		err := errors.New("resource does not have the expected node affinity")
-		l.Error(err, "", "workload name", wlName, "affinity key", procedure.Affinity.Key, "expected value", procedure.Affinity.Initial)
-		return err
+		l.Info("resource does not have the expected node affinity", "workload name", wlName, "affinity key", procedure.Affinity.Key, "expected value", procedure.Affinity.Initial)
+		l.Info("Continuing...")
 	}
 	return nil
 }
@@ -300,6 +299,7 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 			procedure.Timeout = 600
 		}
 		timeout := time.Duration(procedure.Timeout) * time.Second
+		time.Sleep(2 * time.Second) // Pause to allow affinity injection to take
 		l.Info("Starting to wait", "name", workload, "timeout", timeout)
 		waitForConditionWithTimeout(func() bool {
 			return isResourceReady(ctx, wlType)
