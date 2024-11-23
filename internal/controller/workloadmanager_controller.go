@@ -254,6 +254,7 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 	var deployment *appsv1.Deployment
 	var statefulset *appsv1.StatefulSet
 	var err error
+	var interval time.Duration
 
 	for _, workload := range procedure.Workloads {
 		if wlType == k8smanagersv1.StatefulSet {
@@ -270,7 +271,8 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				l.Error(err, "Error updating statefulset", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
-			time.Sleep(10 * time.Second) // Pause to allow affinity injection to take
+			interval = 30 * time.Second
+			time.Sleep(30 * time.Second) // Pause to allow affinity injection to take
 		}
 		if wlType == k8smanagersv1.Deployment {
 			deployment, err = clientset.AppsV1().Deployments(procedure.Namespace).Get(ctx, workload, metav1.GetOptions{})
@@ -285,7 +287,8 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				l.Error(err, "Error updating deployment", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
-			time.Sleep(1 * time.Second) // Pause to allow affinity injection to take
+			time.Sleep(5 * time.Second) // Pause to allow affinity injection to take
+			interval = 5 * time.Second
 		}
 
 		ctx = context.WithValue(ctx, "namespace", procedure.Namespace)
@@ -304,7 +307,7 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 		l.Info("Starting to wait", "name", workload, "timeout", timeout)
 		waitForConditionWithTimeout(func() bool {
 			return isResourceReady(ctx, wlType)
-		}, 5*time.Second, timeout)
+		}, interval, timeout)
 	}
 
 	return nil
@@ -353,12 +356,8 @@ func isDeploymentReady(clientset *kubernetes.Clientset, namespace string, deploy
 		l.Error(err, "Could not monitor")
 	}
 
-	// Get the label selector from the deployment
 	labelSelector := metav1.FormatLabelSelector(mondeployment.Spec.Selector)
-	pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: labelSelector})
-	if err != nil {
-		l.Error(err, "Could not find pod matching", "labelselector", labelSelector)
-	}
+	pods, err := getPodFromLabel(clientset, namespace, labelSelector)
 
 	var podname string = "UNKNOWN"
 	if len(pods.Items) > 0 {
@@ -390,6 +389,17 @@ func isStatefulSetReady(clientset *kubernetes.Clientset, namespace string, state
 		l.Error(err, "Could not monitor")
 	}
 
+	labelSelector := metav1.FormatLabelSelector(monstatefulset.Spec.Selector)
+	pods, err := getPodFromLabel(clientset, namespace, labelSelector)
+
+	// Print the status of each pod
+	for _, pod := range pods.Items {
+		l.Info("msg", "Pod Name", pod.Name, "Phase", pod.Status.Phase)
+		for _, condition := range pod.Status.Conditions {
+			l.Info("msg", "Cond T", condition.Type, "Phase", condition.Status)
+		}
+	}
+
 	expectedReplicas := *monstatefulset.Spec.Replicas
 	readyReplicas := monstatefulset.Status.ReadyReplicas
 	l.Info("Monitoring replicas", "expected", expectedReplicas, "ready", readyReplicas)
@@ -400,6 +410,16 @@ func isStatefulSetReady(clientset *kubernetes.Clientset, namespace string, state
 	return false
 }
 
+func getPodFromLabel(clientset *kubernetes.Clientset, namespace string, labelSelector string) (*v1.PodList, error) {
+	// List the pods matching the label selector
+	pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return pods, nil
+}
 func waitForConditionWithTimeout(condFunc func() bool, interval, timeout time.Duration) bool {
 	l := log.Log
 
