@@ -382,7 +382,7 @@ func isDeploymentReady(clientset *kubernetes.Clientset, namespace string, deploy
 
 func isStatefulSetReady(clientset *kubernetes.Clientset, namespace string, statefulset *appsv1.StatefulSet) bool {
 	l := log.Log
-	l.Info("Waiting to start...", "name", statefulset.Spec.ServiceName)
+	l.Info("Waiting to start...", "name", statefulset.Name)
 
 	monstatefulset, err := clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), statefulset.Name, metav1.GetOptions{})
 	if err != nil {
