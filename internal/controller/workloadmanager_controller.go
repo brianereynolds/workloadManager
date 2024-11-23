@@ -270,6 +270,7 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				l.Error(err, "Error updating statefulset", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
+			time.Sleep(10 * time.Second) // Pause to allow affinity injection to take
 		}
 		if wlType == k8smanagersv1.Deployment {
 			deployment, err = clientset.AppsV1().Deployments(procedure.Namespace).Get(ctx, workload, metav1.GetOptions{})
@@ -284,6 +285,7 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				l.Error(err, "Error updating deployment", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
+			time.Sleep(1 * time.Second) // Pause to allow affinity injection to take
 		}
 
 		ctx = context.WithValue(ctx, "namespace", procedure.Namespace)
@@ -299,7 +301,6 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 			procedure.Timeout = 600
 		}
 		timeout := time.Duration(procedure.Timeout) * time.Second
-		time.Sleep(2 * time.Second) // Pause to allow affinity injection to take
 		l.Info("Starting to wait", "name", workload, "timeout", timeout)
 		waitForConditionWithTimeout(func() bool {
 			return isResourceReady(ctx, wlType)
@@ -391,8 +392,9 @@ func isStatefulSetReady(clientset *kubernetes.Clientset, namespace string, state
 
 	expectedReplicas := *monstatefulset.Spec.Replicas
 	readyReplicas := monstatefulset.Status.ReadyReplicas
+	l.Info("Monitoring replicas", "expected", expectedReplicas, "ready", readyReplicas)
 	if readyReplicas == expectedReplicas {
-		l.Info("Statefulset ready.", "name", statefulset.Spec.ServiceName)
+		l.Info("Statefulset ready.", "name", statefulset.Name)
 		return true
 	}
 	return false
