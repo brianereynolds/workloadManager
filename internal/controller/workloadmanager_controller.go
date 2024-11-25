@@ -97,21 +97,20 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 	}
 
 	if wlManager.Spec.SPNLoginType == k8smanagersv1.AzCli {
-
-		azure_client_id := os.Getenv("AZURE_CLIENT_ID")
-		azure_tenant_id := os.Getenv("AZURE_TENANT_ID")
-		azure_client_secret := os.Getenv("AZURE_CLIENT_SECRET")
+		azureClientId := os.Getenv("AZURE_CLIENT_ID")
+		azureTenantId := os.Getenv("AZURE_TENANT_ID")
+		azureClientSecret := os.Getenv("AZURE_CLIENT_SECRET")
 		cmd := exec.Command("az", "login", "--service-principal",
-			"--username", azure_client_id,
-			"--tenant", azure_tenant_id,
-			"--password", azure_client_secret)
-		if azure_client_id == "" {
+			"--username", azureClientId,
+			"--tenant", azureTenantId,
+			"--password", azureClientSecret)
+		if azureClientId == "" {
 			return nil, errors.New("AZURE_CLIENT_ID is mandatory when using " + k8smanagersv1.AzCli)
 		}
-		if azure_tenant_id == "" {
+		if azureTenantId == "" {
 			return nil, errors.New("AZURE_TENANT_ID is mandatory when using " + k8smanagersv1.AzCli)
 		}
-		if azure_client_secret == "" {
+		if azureClientSecret == "" {
 			return nil, errors.New("AZURE_CLIENT_SECRET is mandatory when using " + k8smanagersv1.AzCli)
 		}
 
