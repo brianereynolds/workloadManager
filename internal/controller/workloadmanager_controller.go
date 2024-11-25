@@ -79,7 +79,15 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 
 	var kubeconfigpath = "/.kube/config"
 
-	if kubeconfig != nil {
+	if wlManager.Spec.SPNLoginType == k8smanagersv1.ListClusterUserCredentials ||
+		wlManager.Spec.SPNLoginType == k8smanagersv1.ListClusterAdminCredentials {
+
+		// We should have a kubeconfig at this point
+		if kubeconfig == nil {
+			err = errors.New("Login has failed using " + wlManager.Spec.SPNLoginType)
+			return nil, err
+		}
+
 		_, err = k8smanagers_utils.WriteKubeFile(kubeconfig)
 		if err != nil {
 			l.Error(err, "cannot write kubeconfig")
@@ -468,7 +476,10 @@ func (r *WorkloadManagerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	// Defaults
-	wlManager.Spec.SPNLoginType = k8smanagersv1.ListClusterAdminCredentials
+	if wlManager.Spec.SPNLoginType == "" {
+		l.V(1).Info("Setting default SPNLoginType " + k8smanagersv1.ListClusterAdminCredentials)
+		wlManager.Spec.SPNLoginType = k8smanagersv1.ListClusterAdminCredentials
+	}
 
 	requeue := wlManager.Spec.RetryOnError
 
