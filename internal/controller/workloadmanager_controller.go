@@ -468,6 +468,7 @@ func waitForConditionWithTimeout(condFunc func() bool, interval, timeout time.Du
 func (r *WorkloadManagerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.Log
 	l.Info("Enter Reconcile")
+	l.V(1).Info("DEBUG LOGGING")
 
 	var wlManager k8smanagersv1.WorkloadManager
 
