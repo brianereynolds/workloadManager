@@ -47,6 +47,7 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 	l := log.Log
 
 	if r.clientset != nil {
+		l.V(3).Info("Returning cached clientset")
 		return r.clientset, nil
 	}
 
