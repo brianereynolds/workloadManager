@@ -31,6 +31,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -96,10 +97,24 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 	}
 
 	if wlManager.Spec.SPNLoginType == k8smanagersv1.AzCli {
+
+		azure_client_id := os.Getenv("AZURE_CLIENT_ID")
+		azure_tenant_id := os.Getenv("AZURE_TENANT_ID")
+		azure_client_secret := os.Getenv("AZURE_CLIENT_SECRET")
 		cmd := exec.Command("az", "login", "--service-principal",
-			"--username", os.Getenv("AZURE_CLIENT_ID"),
-			"--tenant", os.Getenv("AZURE_TENANT_ID"),
-			"--password", os.Getenv("AZURE_CLIENT_SECRET"))
+			"--username", azure_client_id,
+			"--tenant", azure_tenant_id,
+			"--password", azure_client_secret)
+		if azure_client_id == "" {
+			return nil, errors.New("AZURE_CLIENT_ID is mandatory when using " + k8smanagersv1.AzCli)
+		}
+		if azure_tenant_id == "" {
+			return nil, errors.New("AZURE_TENANT_ID is mandatory when using " + k8smanagersv1.AzCli)
+		}
+		if azure_client_secret == "" {
+			return nil, errors.New("AZURE_CLIENT_SECRET is mandatory when using " + k8smanagersv1.AzCli)
+		}
+
 		l.Info("az login: ", "cmd", strings.Replace(cmd.String(), os.Getenv("AZURE_CLIENT_SECRET"), "*********", -1))
 		result, err := cmd.CombinedOutput()
 		if err != nil {
@@ -468,7 +483,7 @@ func waitForConditionWithTimeout(condFunc func() bool, interval, timeout time.Du
 func (r *WorkloadManagerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.Log
 	l.Info("Enter Reconcile")
-	l.V(1).Info("DEBUG LOGGING")
+	l.V(1).Info("Debug logging enabled!")
 
 	var wlManager k8smanagersv1.WorkloadManager
 
@@ -483,6 +498,7 @@ func (r *WorkloadManagerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	requeue := wlManager.Spec.RetryOnError
+	l.V(1).Info("Retry on error " + strconv.FormatBool(wlManager.Spec.RetryOnError))
 
 	if err := r.validate(ctx, &wlManager); err != nil {
 		l.Error(err, "Error during validate")
