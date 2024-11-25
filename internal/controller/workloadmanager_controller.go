@@ -462,12 +462,12 @@ func (r *WorkloadManagerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	var wlManager k8smanagersv1.WorkloadManager
 
-	// Defaults
-	wlManager.Spec.SPNLoginType = k8smanagersv1.ListClusterAdminCredentials
-
 	if err := r.Get(ctx, req.NamespacedName, &wlManager); err != nil {
 		panic(err.Error())
 	}
+
+	// Defaults
+	wlManager.Spec.SPNLoginType = k8smanagersv1.ListClusterAdminCredentials
 
 	requeue := wlManager.Spec.RetryOnError
 
