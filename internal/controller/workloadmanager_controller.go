@@ -310,8 +310,8 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				l.Error(err, "Error updating deployment", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
-			time.Sleep(5 * time.Second) // Pause to allow affinity injection to take
-			interval = 5 * time.Second
+			time.Sleep(10 * time.Second) // Pause to allow affinity injection to take
+			interval = 10 * time.Second
 		}
 
 		ctx = context.WithValue(ctx, "namespace", procedure.Namespace)
