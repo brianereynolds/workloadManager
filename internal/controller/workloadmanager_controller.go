@@ -279,6 +279,10 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 	var err error
 	var interval time.Duration
 
+	if procedure.Timeout == 0 {
+		procedure.Timeout = 600
+	}
+
 	for _, workload := range procedure.Workloads {
 		if wlType == k8smanagersv1.StatefulSet {
 			statefulset, err = clientset.AppsV1().StatefulSets(procedure.Namespace).Get(ctx, workload, metav1.GetOptions{})
@@ -310,7 +314,9 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				l.Error(err, "Error updating deployment", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
-			time.Sleep(10 * time.Second) // Pause to allow affinity injection to take
+			if procedure.Timeout > 10 {
+				time.Sleep(10 * time.Second) // Pause to allow affinity injection to take
+			}
 			interval = 10 * time.Second
 		}
 
@@ -323,9 +329,6 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 			ctx = context.WithValue(ctx, "resource", statefulset)
 		}
 
-		if procedure.Timeout == 0 {
-			procedure.Timeout = 600
-		}
 		timeout := time.Duration(procedure.Timeout) * time.Second
 		l.Info("Starting to wait", "name", workload, "timeout", timeout)
 		waitForConditionWithTimeout(func() bool {
