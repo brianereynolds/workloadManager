@@ -23,8 +23,11 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
+          context: .
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/workload-manager:latest
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/workload-manager:latest
+            ${{ secrets.DOCKER_USERNAME }}/workload-manager:${{ github.ref_name }}
   helm-upload:
     permissions:
       contents: write
