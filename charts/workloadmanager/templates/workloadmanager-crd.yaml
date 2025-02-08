@@ -58,6 +58,15 @@ spec:
                       type: string
                     namespace:
                       type: string
+                    selector:
+                      properties:
+                        initial:
+                          type: string
+                        key:
+                          type: string
+                        target:
+                          type: string
+                      type: object
                     timeout:
                       type: integer
                     type:
