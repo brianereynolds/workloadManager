@@ -18,11 +18,14 @@ package controller
 
 import (
 	"context"
+	"go.uber.org/zap/zapcore"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,9 +39,12 @@ var _ = Describe("WorkloadManager Controller", func() {
 
 		ctx := context.Background()
 
+		zapLogger := zap.New(zap.UseDevMode(true), zap.Level(zapcore.DebugLevel))
+		log.SetLogger(zapLogger)
+
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: "default",
 		}
 		workloadmanager := &k8smanagersv1.WorkloadManager{}
 
@@ -51,14 +57,20 @@ var _ = Describe("WorkloadManager Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: k8smanagersv1.WorkloadManagerSpec{
+						SubscriptionID: "3e54eb54-946e-4ff4-a430-d7b190cd45cf",
+						ResourceGroup:  "node-upgrader",
+						ClusterName:    "lm-cluster",
+						SPNLoginType:   "azCli",
+						RetryOnError:   false,
+						TestMode:       false,
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 			resource := &k8smanagersv1.WorkloadManager{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
@@ -66,8 +78,8 @@ var _ = Describe("WorkloadManager Controller", func() {
 			By("Cleanup the specific resource instance WorkloadManager")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
+
 		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
 			controllerReconciler := &WorkloadManagerReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
@@ -76,9 +88,66 @@ var _ = Describe("WorkloadManager Controller", func() {
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,
 			})
+
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+		})
+
+		It("Validate affinity", func() {
+			resource := &k8smanagersv1.WorkloadManager{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			procedure := k8smanagersv1.Procedure{
+				Affinity: k8smanagersv1.Affinity{
+					Key:     "agentpool",
+					Initial: "initialaffinity",
+					Target:  "targetaffinity",
+				},
+			}
+
+			resource.Spec.Procedures = append(resource.Spec.Procedures, procedure)
+
+			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+
+			controllerReconciler := &WorkloadManagerReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Validate selector", func() {
+			resource := &k8smanagersv1.WorkloadManager{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			procedure := k8smanagersv1.Procedure{
+				Selector: k8smanagersv1.Selector{
+					Key:     "app/node",
+					Initial: "initialselector",
+					Target:  "initialselector",
+				},
+			}
+
+			resource.Spec.Procedures = append(resource.Spec.Procedures, procedure)
+
+			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+
+			controllerReconciler := &WorkloadManagerReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+
+			Expect(err).NotTo(HaveOccurred())
 		})
 	})
 })
