@@ -44,6 +44,10 @@ type WorkloadManagerReconciler struct {
 	clientset *kubernetes.Clientset
 }
 
+func isRunningInDocker() bool {
+	return os.Getenv("container") == "docker"
+}
+
 func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager *k8smanagersv1.WorkloadManager) (*kubernetes.Clientset, error) {
 	l := log.Log
 
@@ -79,6 +83,9 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 	}
 
 	var kubeconfigpath = "/.kube/config"
+	if isRunningInDocker() == false {
+		kubeconfigpath = os.Getenv("HOME") + "/.kube/config"
+	}
 
 	if wlManager.Spec.SPNLoginType == k8smanagersv1.ListClusterUserCredentials ||
 		wlManager.Spec.SPNLoginType == k8smanagersv1.ListClusterAdminCredentials {
@@ -184,6 +191,7 @@ func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clie
 	for _, workload := range procedure.Workloads {
 
 		var affinity *v1.NodeAffinity
+		var selector *metav1.LabelSelector
 
 		if wlType == k8smanagersv1.StatefulSet {
 			statefulset, err := clientset.AppsV1().StatefulSets(procedure.Namespace).Get(ctx, workload, metav1.GetOptions{})
@@ -192,6 +200,7 @@ func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clie
 				return err
 			}
 			affinity = statefulset.Spec.Template.Spec.Affinity.NodeAffinity
+			selector = statefulset.Spec.Selector
 		}
 		if wlType == k8smanagersv1.Deployment {
 			deployment, err := clientset.AppsV1().Deployments(procedure.Namespace).Get(ctx, workload, metav1.GetOptions{})
@@ -200,9 +209,17 @@ func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clie
 				return err
 			}
 			affinity = deployment.Spec.Template.Spec.Affinity.NodeAffinity
+			selector = deployment.Spec.Selector
 		}
 
-		err := r.checkNodeAffinity(affinity, procedure, workload)
+		var err error
+		if affinity != nil {
+			err = r.checkNodeAffinity(affinity, procedure, workload)
+		}
+
+		if selector != nil {
+			err = r.checkNodeSelector(selector, procedure, workload)
+		}
 		if err != nil {
 			return err
 		}
@@ -237,6 +254,10 @@ func (r *WorkloadManagerReconciler) checkNodeAffinity(affinity *v1.NodeAffinity,
 		l.Info("resource does not have the expected node affinity", "workload name", wlName, "affinity key", procedure.Affinity.Key, "expected value", procedure.Affinity.Initial)
 		l.Info("Continuing...")
 	}
+	return nil
+}
+
+func (r *WorkloadManagerReconciler) checkNodeSelector(selector *metav1.LabelSelector, procedure k8smanagersv1.Procedure, wlName string) error {
 	return nil
 }
 
