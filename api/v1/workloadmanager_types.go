@@ -41,12 +41,19 @@ type Affinity struct {
 	Target  string `json:"target,omitempty"`
 }
 
+type Selector struct {
+	Key     string `json:"key,omitempty"`
+	Initial string `json:"initial,omitempty"`
+	Target  string `json:"target,omitempty"`
+}
+
 type Procedure struct {
 	Description string        `json:"description,omitempty"`
 	Type        WorkloadTypes `json:"type,omitempty"`
 	Namespace   string        `json:"namespace,omitempty"`
-	Workloads   []string      `json:"workloads"`
-	Affinity    Affinity      `json:"affinity"`
+	Workloads   []string      `json:"workloads,omitempty"`
+	Affinity    Affinity      `json:"affinity,omitempty"`
+	Selector    Selector      `json:"selector,omitempty"`
 	Timeout     int           `json:"timeout,omitempty"`
 }
 
@@ -58,7 +65,7 @@ type WorkloadManagerSpec struct {
 	SPNLoginType   string      `json:"spnLoginType,omitempty"`
 	RetryOnError   bool        `json:"retryOnError,omitempty"`
 	TestMode       bool        `json:"testMode,omitempty"`
-	Procedures     []Procedure `json:"procedures"`
+	Procedures     []Procedure `json:"procedures,omitempty"`
 }
 
 // WorkloadManagerStatus defines the observed state of WorkloadManager
