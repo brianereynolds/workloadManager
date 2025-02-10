@@ -21,6 +21,7 @@ import (
 	"errors"
 	"github.com/brianereynolds/k8smanagers_utils"
 	k8smanagersv1 "greyridge.com/workloadManager/api/v1"
+	"greyridge.com/workloadManager/internal/controller/scheduling"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -199,8 +200,12 @@ func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clie
 				l.Error(err, "Stateful not found", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
-			affinity = statefulset.Spec.Template.Spec.Affinity.NodeAffinity
-			selector = statefulset.Spec.Selector
+			if scheduling.HasAffinity(statefulset) {
+				affinity = statefulset.Spec.Template.Spec.Affinity.NodeAffinity
+			}
+			if scheduling.HasSelector(statefulset) {
+				selector = statefulset.Spec.Selector
+			}
 		}
 		if wlType == k8smanagersv1.Deployment {
 			deployment, err := clientset.AppsV1().Deployments(procedure.Namespace).Get(ctx, workload, metav1.GetOptions{})
@@ -208,56 +213,31 @@ func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clie
 				l.Error(err, "Deployment not found", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
-			affinity = deployment.Spec.Template.Spec.Affinity.NodeAffinity
-			selector = deployment.Spec.Selector
+
+			if scheduling.HasAffinity(deployment) {
+				affinity = deployment.Spec.Template.Spec.Affinity.NodeAffinity
+			}
+			if scheduling.HasSelector(deployment) {
+				selector = deployment.Spec.Selector
+			}
 		}
 
-		var err error
-		if affinity != nil {
-			err = r.checkNodeAffinity(affinity, procedure, workload)
+		if affinity == nil && selector == nil {
+			err := errors.New("could not find any any node affinity or node selector")
+			l.Error(err, "Validation failed")
+			return err
 		}
 
-		if selector != nil {
-			err = r.checkNodeSelector(selector, procedure, workload)
+		err := scheduling.CheckNodeAffinity(affinity, procedure, workload)
+		if err != nil {
+			return err
 		}
+		err = scheduling.CheckNodeSelector(selector, procedure, workload)
 		if err != nil {
 			return err
 		}
 	}
 
-	return nil
-}
-
-func (r *WorkloadManagerReconciler) checkNodeAffinity(affinity *v1.NodeAffinity, procedure k8smanagersv1.Procedure, wlName string) error {
-	l := log.Log
-
-	if affinity == nil {
-		err := errors.New("could not find any any node affinity")
-		l.Error(err, "Validation failed")
-		return err
-	}
-
-	checkOk := false
-	for _, terms := range affinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-		for _, expressions := range terms.MatchExpressions {
-			if expressions.Key == procedure.Affinity.Key {
-				for _, value := range expressions.Values {
-					if value == procedure.Affinity.Initial {
-						checkOk = true
-					}
-				}
-			}
-		}
-	}
-
-	if checkOk == false {
-		l.Info("resource does not have the expected node affinity", "workload name", wlName, "affinity key", procedure.Affinity.Key, "expected value", procedure.Affinity.Initial)
-		l.Info("Continuing...")
-	}
-	return nil
-}
-
-func (r *WorkloadManagerReconciler) checkNodeSelector(selector *metav1.LabelSelector, procedure k8smanagersv1.Procedure, wlName string) error {
 	return nil
 }
 
@@ -281,6 +261,7 @@ func (r *WorkloadManagerReconciler) apply(ctx context.Context, wlManager *k8sman
 		}
 
 		if procedure.Type == k8smanagersv1.Deployment {
+
 			err = r.updateAffinity(ctx, clientset, procedure, k8smanagersv1.Deployment)
 		}
 
@@ -312,7 +293,12 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				return err
 			}
 
-			statefulset.Spec.Template.Spec.Affinity.NodeAffinity = r.createNodeAffinity(procedure.Affinity.Key, procedure.Affinity.Target)
+			if scheduling.HasAffinity(statefulset) {
+				statefulset.Spec.Template.Spec.Affinity.NodeAffinity = scheduling.CreateNodeAffinity(procedure.Affinity.Key, procedure.Affinity.Target)
+			}
+			if scheduling.HasSelector(statefulset) {
+				statefulset.Spec.Template.Spec.NodeSelector = scheduling.CreateNodeSelector(procedure.Selector.Key, procedure.Selector.Target)
+			}
 
 			_, err = clientset.AppsV1().StatefulSets(procedure.Namespace).Update(ctx, statefulset, metav1.UpdateOptions{})
 			if err != nil {
@@ -328,7 +314,12 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				l.Error(err, "Deployment not found", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
-			deployment.Spec.Template.Spec.Affinity.NodeAffinity = r.createNodeAffinity(procedure.Affinity.Key, procedure.Affinity.Target)
+			if scheduling.HasAffinity(deployment) {
+				deployment.Spec.Template.Spec.Affinity.NodeAffinity = scheduling.CreateNodeAffinity(procedure.Affinity.Key, procedure.Affinity.Target)
+			}
+			if scheduling.HasSelector(deployment) {
+				deployment.Spec.Template.Spec.NodeSelector = scheduling.CreateNodeSelector(procedure.Selector.Key, procedure.Selector.Target)
+			}
 
 			deployment, err = clientset.AppsV1().Deployments(procedure.Namespace).Update(ctx, deployment, metav1.UpdateOptions{})
 			if err != nil {
@@ -358,25 +349,6 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 	}
 
 	return nil
-}
-
-func (r *WorkloadManagerReconciler) createNodeAffinity(key string, value string) *v1.NodeAffinity {
-	nodeAffinity := &v1.NodeAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-			NodeSelectorTerms: []v1.NodeSelectorTerm{
-				{
-					MatchExpressions: []v1.NodeSelectorRequirement{
-						{
-							Key:      key,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{value},
-						},
-					},
-				},
-			},
-		},
-	}
-	return nodeAffinity
 }
 
 func isResourceReady(ctx context.Context, wlType string) bool {
@@ -471,6 +443,7 @@ func getPodFromLabel(clientset *kubernetes.Clientset, namespace string, labelSel
 	}
 	return pods, nil
 }
+
 func waitForConditionWithTimeout(condFunc func() bool, interval, timeout time.Duration) bool {
 	l := log.Log
 
