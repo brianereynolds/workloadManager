@@ -315,9 +315,11 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				return err
 			}
 			if scheduling.HasAffinity(deployment) {
+				l.V(1).Info("Has Affinity", "Key", procedure.Affinity.Key, "Target", procedure.Affinity.Target)
 				deployment.Spec.Template.Spec.Affinity.NodeAffinity = scheduling.CreateNodeAffinity(procedure.Affinity.Key, procedure.Affinity.Target)
 			}
 			if scheduling.HasSelector(deployment) {
+				l.V(1).Info("Has Selector", "Key", procedure.Selector.Key, "Target", procedure.Selector.Target)
 				deployment.Spec.Template.Spec.NodeSelector = scheduling.CreateNodeSelector(procedure.Selector.Key, procedure.Selector.Target)
 			}
 
