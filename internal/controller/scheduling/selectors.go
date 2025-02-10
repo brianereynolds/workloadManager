@@ -50,22 +50,17 @@ func CreateNodeSelector(key, value string) map[string]string {
 
 // Helper function to check Selector for Deployment
 func hasDeploymentSelector(deployment *appsv1.Deployment) bool {
-	return hasLabelSelector(deployment.Spec.Selector)
+	return hasNodeSelector(deployment.Spec.Template.Spec.NodeSelector)
 }
 
 // Helper function to check Selector for StatefulSet
 func hasStatefulSetSelector(statefulset *appsv1.StatefulSet) bool {
-	return hasLabelSelector(statefulset.Spec.Selector)
+	return hasNodeSelector(statefulset.Spec.Template.Spec.NodeSelector)
 }
 
-func hasLabelSelector(selector *metav1.LabelSelector) bool {
-	if selector == nil {
-		return false
+func hasNodeSelector(nodeSelector map[string]string) bool {
+	if len(nodeSelector) > 0 {
+		return true
 	}
-
-	if len(selector.MatchLabels) == 0 && len(selector.MatchExpressions) == 0 {
-		return false
-	}
-
-	return true
+	return false
 }

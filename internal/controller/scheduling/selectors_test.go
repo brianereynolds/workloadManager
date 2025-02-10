@@ -1,147 +1,134 @@
 package scheduling
 
 import (
+	"testing"
+
 	k8smanagersv1 "greyridge.com/workloadManager/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"reflect"
-	"testing"
 )
 
+// TestHasSelector tests the HasSelector function
 func TestHasSelector(t *testing.T) {
-	tests := []struct {
-		name     string
-		resource interface{}
-		want     bool
-	}{
-		{
-			name: "Deployment with Selector",
-			resource: &appsv1.Deployment{
-				Spec: appsv1.DeploymentSpec{
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"app": "example",
-						},
+	deployment := &appsv1.Deployment{
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"disktype": "ssd",
 					},
 				},
 			},
-			want: true,
-		},
-		{
-			name: "Deployment without Selector",
-			resource: &appsv1.Deployment{
-				Spec: appsv1.DeploymentSpec{
-					Selector: nil,
-				},
-			},
-			want: false,
-		},
-		{
-			name: "StatefulSet with Selector",
-			resource: &appsv1.StatefulSet{
-				Spec: appsv1.StatefulSetSpec{
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"app": "example",
-						},
-					},
-				},
-			},
-			want: true,
-		},
-		{
-			name: "StatefulSet without Selector",
-			resource: &appsv1.StatefulSet{
-				Spec: appsv1.StatefulSetSpec{
-					Selector: nil,
-				},
-			},
-			want: false,
-		},
-		{
-			name:     "Invalid resource type",
-			resource: &struct{}{},
-			want:     false,
 		},
 	}
+	if !HasSelector(deployment) {
+		t.Errorf("Expected deployment to have a selector")
+	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := HasSelector(tt.resource); got != tt.want {
-				t.Errorf("HasSelector() = %v, want %v", got, tt.want)
-			}
-		})
+	statefulSet := &appsv1.StatefulSet{
+		Spec: appsv1.StatefulSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"disktype": "ssd",
+					},
+				},
+			},
+		},
+	}
+	if !HasSelector(statefulSet) {
+		t.Errorf("Expected statefulset to have a selector")
+	}
+
+	otherResource := "non-k8s-resource"
+	if HasSelector(otherResource) {
+		t.Errorf("Expected non-k8s resource to not have a selector")
 	}
 }
 
+// TestCheckNodeSelector tests the CheckNodeSelector function
 func TestCheckNodeSelector(t *testing.T) {
-	tests := []struct {
-		name      string
-		selector  *metav1.LabelSelector
-		procedure k8smanagersv1.Procedure
-		wlName    string
-		wantErr   bool
-	}{
-		{
-			name: "Selector with matching key and value",
-			selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"node-type": "initial",
-				},
-			},
-			procedure: k8smanagersv1.Procedure{
-				Selector: k8smanagersv1.Selector{
-					Key:     "node-type",
-					Initial: "initial",
-				},
-			},
-			wlName:  "workload1",
-			wantErr: false,
-		},
-		{
-			name: "Selector without matching key and value",
-			selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"node-type": "initial",
-				},
-			},
-			procedure: k8smanagersv1.Procedure{
-				Selector: k8smanagersv1.Selector{
-					Key:     "node-type",
-					Initial: "non-matching-value",
-				},
-			},
-			wlName:  "workload1",
-			wantErr: false,
-		},
-		{
-			name:      "Nil selector",
-			selector:  nil,
-			procedure: k8smanagersv1.Procedure{},
-			wlName:    "workload1",
-			wantErr:   false,
+	selector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"disktype": "ssd",
 		},
 	}
+	procedure := k8smanagersv1.Procedure{
+		Selector: k8smanagersv1.Selector{
+			Key:     "disktype",
+			Initial: "ssd",
+		},
+	}
+	err := CheckNodeSelector(selector, procedure, "test-workload")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := CheckNodeSelector(tt.selector, tt.procedure, tt.wlName); (err != nil) != tt.wantErr {
-				t.Errorf("CheckNodeSelector() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
+	procedure.Selector.Initial = "hdd"
+	err = CheckNodeSelector(selector, procedure, "test-workload")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
 	}
 }
 
+// TestCreateNodeSelector tests the CreateNodeSelector function
 func TestCreateNodeSelector(t *testing.T) {
 	key := "disktype"
 	value := "ssd"
-	expectedNodeSelector := map[string]string{
-		key: value,
+	nodeSelector := CreateNodeSelector(key, value)
+	if nodeSelector[key] != value {
+		t.Errorf("Expected nodeSelector[%s] to be %s, got %s", key, value, nodeSelector[key])
+	}
+}
+
+// TestHasDeploymentSelector tests the hasDeploymentSelector helper function
+func TestHasDeploymentSelector(t *testing.T) {
+	deployment := &appsv1.Deployment{
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"disktype": "ssd",
+					},
+				},
+			},
+		},
+	}
+	if !hasDeploymentSelector(deployment) {
+		t.Errorf("Expected deployment to have a selector")
+	}
+}
+
+// TestHasStatefulSetSelector tests the hasStatefulSetSelector helper function
+func TestHasStatefulSetSelector(t *testing.T) {
+	statefulSet := &appsv1.StatefulSet{
+		Spec: appsv1.StatefulSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"disktype": "ssd",
+					},
+				},
+			},
+		},
+	}
+	if !hasStatefulSetSelector(statefulSet) {
+		t.Errorf("Expected statefulset to have a selector")
+	}
+}
+
+// TestHasNodeSelector tests the hasNodeSelector helper function
+func TestHasNodeSelector(t *testing.T) {
+	nodeSelector := map[string]string{
+		"disktype": "ssd",
+	}
+	if !hasNodeSelector(nodeSelector) {
+		t.Errorf("Expected nodeSelector to be true")
 	}
 
-	nodeSelector := CreateNodeSelector(key, value)
-
-	if !reflect.DeepEqual(nodeSelector, expectedNodeSelector) {
-		t.Errorf("CreateNodeSelector() = %v, want %v", nodeSelector, expectedNodeSelector)
+	emptyNodeSelector := map[string]string{}
+	if hasNodeSelector(emptyNodeSelector) {
+		t.Errorf("Expected empty nodeSelector to be false")
 	}
 }
