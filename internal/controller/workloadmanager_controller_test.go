@@ -42,17 +42,17 @@ var _ = Describe("WorkloadManager Controller", func() {
 		zapLogger := zap.New(zap.UseDevMode(true), zap.Level(zapcore.DebugLevel))
 		log.SetLogger(zapLogger)
 
-		BeforeEach(func() {
+		var deployment *appsv1.Deployment
+		var resource *k8smanagersv1.WorkloadManager
 
+		BeforeEach(func() {
+			deployment = newDeployment()
+			resource = newResource()
 		})
 
 		AfterEach(func() {
 			_ = k8sClient.Delete(ctx, deployment)
-
 			_ = k8sClient.Delete(ctx, resource)
-
-			deployment.ResourceVersion = ""
-			resource.ResourceVersion = ""
 
 			time.Sleep(5 * time.Second)
 		})
@@ -64,7 +64,6 @@ var _ = Describe("WorkloadManager Controller", func() {
 		})
 
 		It("Test affinity on Deployment", func() {
-			Skip("Skipping this test because it is WORKING") // TODO
 			procedure := k8smanagersv1.Procedure{
 				Type:      "deployment",
 				Namespace: "default",
