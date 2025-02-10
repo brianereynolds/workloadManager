@@ -49,51 +49,56 @@ var k8sClient client.Client
 var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
-var deployment = &appsv1.Deployment{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "test-deployment",
-		Namespace: "default",
-	},
-	Spec: appsv1.DeploymentSpec{
-		Replicas: int32Ptr(1),
-		Selector: &metav1.LabelSelector{
-			MatchLabels: map[string]string{"app": "test"},
-		},
-		Template: corev1.PodTemplateSpec{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{"app": "test"},
-			},
-			Spec: corev1.PodSpec{
-				Containers: []corev1.Container{
-					{
-						Name:  "test-container",
-						Image: "busybox",
-						Args:  []string{"/bin/sh", "-c", "echo Hello, Kubernetes! && sleep 3600"},
-					},
-				},
-			},
-		},
-	},
-}
 
 var typeNamespacedName = types.NamespacedName{
 	Name:      "test-resource",
 	Namespace: "default",
 }
 
-var resource = &k8smanagersv1.WorkloadManager{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "test-resource",
-		Namespace: "default",
-	},
-	Spec: k8smanagersv1.WorkloadManagerSpec{
-		SubscriptionID: "3e54eb54-946e-4ff4-a430-d7b190cd45cf",
-		ResourceGroup:  "node-upgrader",
-		ClusterName:    "lm-cluster",
-		SPNLoginType:   "azCli",
-		RetryOnError:   false,
-		TestMode:       false,
-	},
+func newDeployment() *appsv1.Deployment {
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-deployment",
+			Namespace: "default",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: int32Ptr(1),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "test"},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "test"},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "test-container",
+							Image: "busybox",
+							Args:  []string{"/bin/sh", "-c", "echo Hello, Kubernetes! && sleep 3600"},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func newResource() *k8smanagersv1.WorkloadManager {
+	return &k8smanagersv1.WorkloadManager{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-resource",
+			Namespace: "default",
+		},
+		Spec: k8smanagersv1.WorkloadManagerSpec{
+			SubscriptionID: "3e54eb54-946e-4ff4-a430-d7b190cd45cf",
+			ResourceGroup:  "node-upgrader",
+			ClusterName:    "lm-cluster",
+			SPNLoginType:   "azCli",
+			RetryOnError:   false,
+			TestMode:       false,
+		},
+	}
 }
 
 func TestControllers(t *testing.T) {
