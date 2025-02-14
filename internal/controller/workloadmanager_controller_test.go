@@ -43,15 +43,18 @@ var _ = Describe("WorkloadManager Controller", func() {
 		log.SetLogger(zapLogger)
 
 		var deployment *appsv1.Deployment
+		var statefulset *appsv1.StatefulSet
 		var resource *k8smanagersv1.WorkloadManager
 
 		BeforeEach(func() {
 			deployment = newDeployment()
+			statefulset = newStatefulset()
 			resource = newResource()
 		})
 
 		AfterEach(func() {
 			_ = k8sClient.Delete(ctx, deployment)
+			_ = k8sClient.Delete(ctx, statefulset)
 			_ = k8sClient.Delete(ctx, resource)
 
 			time.Sleep(5 * time.Second)
@@ -161,9 +164,106 @@ var _ = Describe("WorkloadManager Controller", func() {
 			Expect(actualNodeSelector).To(HaveKeyWithValue("pasx/node", "miscgreen"))
 		})
 
-		It("Test affinity on Statefulset", func() {}) // TODO
+		It("Test affinity on Statefulset", func() {
 
-		It("Test affinity on Statefulset", func() {}) // TODO
+			procedure := k8smanagersv1.Procedure{
+				Type:      "statefulset",
+				Namespace: "default",
+				Workloads: []string{statefulset.Name},
+				Affinity: k8smanagersv1.Affinity{
+					Key:     "agentpool",
+					Initial: "bluepool",
+					Target:  "greenpool",
+				},
+				Timeout: 5,
+			}
+
+			resource.Spec.Procedures = append(resource.Spec.Procedures, procedure)
+			Expect(createResource(resource)).To(Succeed())
+
+			nodeAffinity := &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "agentpool",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"bluepool"},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			affinity := &corev1.Affinity{
+				NodeAffinity: nodeAffinity,
+			}
+
+			statefulset.Spec.Template.Spec.Affinity = affinity
+
+			Expect(createStatefulset(statefulset)).To(Succeed())
+
+			Expect(triggerReconcile(ctx, k8sClient, typeNamespacedName)).To(Succeed())
+
+			// Get statefulset and check affinity , it should be updated with the target affinity
+			actualStatefulset := &appsv1.StatefulSet{}
+
+			_ = k8sClient.Get(ctx, client.ObjectKey{
+				Namespace: statefulset.ObjectMeta.Namespace,
+				Name:      statefulset.ObjectMeta.Name,
+			}, actualStatefulset)
+
+			actualAffinity := actualStatefulset.Spec.Template.Spec.Affinity.NodeAffinity
+			Expect(actualAffinity).NotTo(BeNil())
+			Expect(actualAffinity.RequiredDuringSchedulingIgnoredDuringExecution).NotTo(BeNil())
+			Expect(actualAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms).To(HaveLen(1))
+			Expect(actualAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions).To(HaveLen(1))
+			Expect(actualAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Key).To(Equal("agentpool"))
+			Expect(actualAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Operator).To(Equal(corev1.NodeSelectorOpIn))
+			Expect(actualAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Values).To(ContainElement("greenpool"))
+
+		})
+
+		It("Test selector on Statefulset ", func() {
+			procedure := k8smanagersv1.Procedure{
+				Type:      "statefulset",
+				Namespace: "default",
+				Workloads: []string{statefulset.Name},
+				Selector: k8smanagersv1.Selector{
+					Key:     "pasx/node",
+					Initial: "bluepool",
+					Target:  "greenpool",
+				},
+				Timeout: 5,
+			}
+
+			resource.Spec.Procedures = append(resource.Spec.Procedures, procedure)
+			Expect(createResource(resource)).To(Succeed())
+
+			nodeSelector := map[string]string{
+				"pasx/node": "bluepool",
+			}
+
+			statefulset.Spec.Template.Spec.NodeSelector = nodeSelector
+
+			Expect(createStatefulset(statefulset)).To(Succeed())
+
+			Expect(triggerReconcile(ctx, k8sClient, typeNamespacedName)).To(Succeed())
+
+			// Get deployment and check node selector, it should be updated with the target selector
+			actualStatefulset := &appsv1.StatefulSet{}
+
+			_ = k8sClient.Get(ctx, client.ObjectKey{
+				Namespace: statefulset.ObjectMeta.Namespace,
+				Name:      statefulset.ObjectMeta.Name,
+			}, actualStatefulset)
+
+			actualNodeSelector := actualStatefulset.Spec.Template.Spec.NodeSelector
+			Expect(actualNodeSelector).To(HaveKeyWithValue("pasx/node", "greenpool"))
+		})
+
 	})
 })
 
@@ -186,6 +286,10 @@ func createResource(resource *k8smanagersv1.WorkloadManager) error {
 
 func createDeployment(deployment *appsv1.Deployment) error {
 	return k8sClient.Create(ctx, deployment)
-
 }
+
+func createStatefulset(statefuleset *appsv1.StatefulSet) error {
+	return k8sClient.Create(ctx, statefuleset)
+}
+
 func int32Ptr(i int32) *int32 { return &i }
