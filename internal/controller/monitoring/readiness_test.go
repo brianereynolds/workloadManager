@@ -17,7 +17,7 @@ func TestIsResourceReady(t *testing.T) {
 	deploymentName := "test-deployment"
 	statefulsetName := "test-statefulset"
 
-	clientset := fake.NewSimpleClientset(
+	clientset := fake.NewClientset(
 		&appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      deploymentName,
