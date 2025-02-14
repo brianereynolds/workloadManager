@@ -73,13 +73,54 @@ func newDeployment() *appsv1.Deployment {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  "test-container",
+							Name:  "test-container1",
 							Image: "busybox",
 							Args:  []string{"/bin/sh", "-c", "echo Hello, Kubernetes! && sleep 3600"},
 						},
 					},
 				},
 			},
+		},
+	}
+}
+
+func newStatefulset() *appsv1.StatefulSet {
+	return &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-statefulset",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app": "example",
+			},
+		},
+		Spec: appsv1.StatefulSetSpec{
+			Replicas: int32Ptr(3),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "example",
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "example",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "test-container2",
+							Image: "nginx:latest",
+							Ports: []corev1.ContainerPort{
+								{
+									ContainerPort: 80,
+								},
+							},
+						},
+					},
+				},
+			},
+			ServiceName: "test-service",
 		},
 	}
 }
