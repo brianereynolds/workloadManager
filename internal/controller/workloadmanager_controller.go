@@ -21,6 +21,8 @@ import (
 	"errors"
 	"github.com/brianereynolds/k8smanagers_utils"
 	k8smanagersv1 "greyridge.com/workloadManager/api/v1"
+	"greyridge.com/workloadManager/internal/controller/monitoring"
+	"greyridge.com/workloadManager/internal/controller/scheduling"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,6 +44,10 @@ type WorkloadManagerReconciler struct {
 	Scheme *runtime.Scheme
 
 	clientset *kubernetes.Clientset
+}
+
+func isRunningInDocker() bool {
+	return os.Getenv("container") == "docker"
 }
 
 func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager *k8smanagersv1.WorkloadManager) (*kubernetes.Clientset, error) {
@@ -79,6 +85,9 @@ func (r *WorkloadManagerReconciler) getClientSet(ctx context.Context, wlManager 
 	}
 
 	var kubeconfigpath = "/.kube/config"
+	if isRunningInDocker() == false {
+		kubeconfigpath = os.Getenv("HOME") + "/.kube/config"
+	}
 
 	if wlManager.Spec.SPNLoginType == k8smanagersv1.ListClusterUserCredentials ||
 		wlManager.Spec.SPNLoginType == k8smanagersv1.ListClusterAdminCredentials {
@@ -184,6 +193,7 @@ func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clie
 	for _, workload := range procedure.Workloads {
 
 		var affinity *v1.NodeAffinity
+		var selector *metav1.LabelSelector
 
 		if wlType == k8smanagersv1.StatefulSet {
 			statefulset, err := clientset.AppsV1().StatefulSets(procedure.Namespace).Get(ctx, workload, metav1.GetOptions{})
@@ -191,7 +201,12 @@ func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clie
 				l.Error(err, "Stateful not found", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
-			affinity = statefulset.Spec.Template.Spec.Affinity.NodeAffinity
+			if scheduling.HasAffinity(statefulset) {
+				affinity = statefulset.Spec.Template.Spec.Affinity.NodeAffinity
+			}
+			if scheduling.HasSelector(statefulset) {
+				selector = statefulset.Spec.Selector
+			}
 		}
 		if wlType == k8smanagersv1.Deployment {
 			deployment, err := clientset.AppsV1().Deployments(procedure.Namespace).Get(ctx, workload, metav1.GetOptions{})
@@ -199,44 +214,31 @@ func (r *WorkloadManagerReconciler) validateProcedures(ctx context.Context, clie
 				l.Error(err, "Deployment not found", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
-			affinity = deployment.Spec.Template.Spec.Affinity.NodeAffinity
+
+			if scheduling.HasAffinity(deployment) {
+				affinity = deployment.Spec.Template.Spec.Affinity.NodeAffinity
+			}
+			if scheduling.HasSelector(deployment) {
+				selector = deployment.Spec.Selector
+			}
 		}
 
-		err := r.checkNodeAffinity(affinity, procedure, workload)
+		if affinity == nil && selector == nil {
+			err := errors.New("could not find any any node affinity or node selector")
+			l.Error(err, "Validation failed")
+			return err
+		}
+
+		err := scheduling.CheckNodeAffinity(affinity, procedure, workload)
+		if err != nil {
+			return err
+		}
+		err = scheduling.CheckNodeSelector(selector, procedure, workload)
 		if err != nil {
 			return err
 		}
 	}
 
-	return nil
-}
-
-func (r *WorkloadManagerReconciler) checkNodeAffinity(affinity *v1.NodeAffinity, procedure k8smanagersv1.Procedure, wlName string) error {
-	l := log.Log
-
-	if affinity == nil {
-		err := errors.New("could not find any any node affinity")
-		l.Error(err, "Validation failed")
-		return err
-	}
-
-	checkOk := false
-	for _, terms := range affinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-		for _, expressions := range terms.MatchExpressions {
-			if expressions.Key == procedure.Affinity.Key {
-				for _, value := range expressions.Values {
-					if value == procedure.Affinity.Initial {
-						checkOk = true
-					}
-				}
-			}
-		}
-	}
-
-	if checkOk == false {
-		l.Info("resource does not have the expected node affinity", "workload name", wlName, "affinity key", procedure.Affinity.Key, "expected value", procedure.Affinity.Initial)
-		l.Info("Continuing...")
-	}
 	return nil
 }
 
@@ -256,11 +258,11 @@ func (r *WorkloadManagerReconciler) apply(ctx context.Context, wlManager *k8sman
 		}
 
 		if procedure.Type == k8smanagersv1.StatefulSet {
-			err = r.updateAffinity(ctx, clientset, procedure, k8smanagersv1.StatefulSet)
+			err = r.updateScheduling(ctx, clientset, procedure, k8smanagersv1.StatefulSet)
 		}
 
 		if procedure.Type == k8smanagersv1.Deployment {
-			err = r.updateAffinity(ctx, clientset, procedure, k8smanagersv1.Deployment)
+			err = r.updateScheduling(ctx, clientset, procedure, k8smanagersv1.Deployment)
 		}
 
 		if err != nil {
@@ -271,7 +273,7 @@ func (r *WorkloadManagerReconciler) apply(ctx context.Context, wlManager *k8sman
 	return nil
 }
 
-func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientset *kubernetes.Clientset, procedure k8smanagersv1.Procedure, wlType string) error {
+func (r *WorkloadManagerReconciler) updateScheduling(ctx context.Context, clientset *kubernetes.Clientset, procedure k8smanagersv1.Procedure, wlType string) error {
 	l := log.Log
 
 	var deployment *appsv1.Deployment
@@ -291,7 +293,14 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				return err
 			}
 
-			statefulset.Spec.Template.Spec.Affinity.NodeAffinity = r.createNodeAffinity(procedure.Affinity.Key, procedure.Affinity.Target)
+			if scheduling.HasAffinity(statefulset) {
+				l.V(1).Info("Statefulset has Affinity", "Key", procedure.Affinity.Key, "Target", procedure.Affinity.Target)
+				statefulset.Spec.Template.Spec.Affinity.NodeAffinity = scheduling.CreateNodeAffinity(procedure.Affinity.Key, procedure.Affinity.Target)
+			}
+			if scheduling.HasSelector(statefulset) {
+				l.V(1).Info("Statefulset has Selector", "Key", procedure.Selector.Key, "Target", procedure.Selector.Target)
+				statefulset.Spec.Template.Spec.NodeSelector = scheduling.CreateNodeSelector(procedure.Selector.Key, procedure.Selector.Target)
+			}
 
 			_, err = clientset.AppsV1().StatefulSets(procedure.Namespace).Update(ctx, statefulset, metav1.UpdateOptions{})
 			if err != nil {
@@ -307,7 +316,14 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 				l.Error(err, "Deployment not found", "namespace", procedure.Namespace, "name", workload)
 				return err
 			}
-			deployment.Spec.Template.Spec.Affinity.NodeAffinity = r.createNodeAffinity(procedure.Affinity.Key, procedure.Affinity.Target)
+			if scheduling.HasAffinity(deployment) {
+				l.V(1).Info("Deployment has Affinity", "Key", procedure.Affinity.Key, "Target", procedure.Affinity.Target)
+				deployment.Spec.Template.Spec.Affinity.NodeAffinity = scheduling.CreateNodeAffinity(procedure.Affinity.Key, procedure.Affinity.Target)
+			}
+			if scheduling.HasSelector(deployment) {
+				l.V(1).Info("Deployment has Selector", "Key", procedure.Selector.Key, "Target", procedure.Selector.Target)
+				deployment.Spec.Template.Spec.NodeSelector = scheduling.CreateNodeSelector(procedure.Selector.Key, procedure.Selector.Target)
+			}
 
 			deployment, err = clientset.AppsV1().Deployments(procedure.Namespace).Update(ctx, deployment, metav1.UpdateOptions{})
 			if err != nil {
@@ -332,124 +348,13 @@ func (r *WorkloadManagerReconciler) updateAffinity(ctx context.Context, clientse
 		timeout := time.Duration(procedure.Timeout) * time.Second
 		l.Info("Starting to wait", "name", workload, "timeout", timeout)
 		waitForConditionWithTimeout(func() bool {
-			return isResourceReady(ctx, wlType)
+			return monitoring.IsResourceReady(ctx, wlType)
 		}, interval, timeout)
 	}
 
 	return nil
 }
 
-func (r *WorkloadManagerReconciler) createNodeAffinity(key string, value string) *v1.NodeAffinity {
-	nodeAffinity := &v1.NodeAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-			NodeSelectorTerms: []v1.NodeSelectorTerm{
-				{
-					MatchExpressions: []v1.NodeSelectorRequirement{
-						{
-							Key:      key,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{value},
-						},
-					},
-				},
-			},
-		},
-	}
-	return nodeAffinity
-}
-
-func isResourceReady(ctx context.Context, wlType string) bool {
-	namespace := ctx.Value("namespace").(string)
-	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
-
-	if wlType == k8smanagersv1.Deployment {
-		deployment := ctx.Value("resource").(*appsv1.Deployment)
-		return isDeploymentReady(clientset, namespace, deployment)
-	}
-	if wlType == k8smanagersv1.StatefulSet {
-		statefulset := ctx.Value("resource").(*appsv1.StatefulSet)
-		return isStatefulSetReady(clientset, namespace, statefulset)
-	}
-	return false
-}
-
-func isDeploymentReady(clientset *kubernetes.Clientset, namespace string, deployment *appsv1.Deployment) bool {
-	l := log.Log
-	l.Info("Waiting to start...", "name", deployment.Name)
-
-	mondeployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), deployment.Name, metav1.GetOptions{})
-	if err != nil {
-		l.Error(err, "Could not monitor")
-	}
-
-	labelSelector := metav1.FormatLabelSelector(mondeployment.Spec.Selector)
-	pods, err := getPodFromLabel(clientset, namespace, labelSelector)
-
-	var podname string = "UNKNOWN"
-	if len(pods.Items) > 0 {
-		podname = pods.Items[0].Name
-	}
-
-	// Get the pod
-	pod, err := clientset.CoreV1().Pods(namespace).Get(context.Background(), podname, metav1.GetOptions{})
-	if err != nil {
-		l.Error(err, "Could not find pod named", "podname", podname)
-	}
-
-	for _, condition := range pod.Status.Conditions {
-		if condition.Type == "Ready" && condition.Status == "True" {
-			creationTimestamp := pod.ObjectMeta.CreationTimestamp.Time
-			currentTime := time.Now()
-
-			l.Info("Pod started.", "name", deployment.Name, "start-up time", currentTime.Sub(creationTimestamp))
-			return true
-		}
-	}
-
-	return false
-}
-
-func isStatefulSetReady(clientset *kubernetes.Clientset, namespace string, statefulset *appsv1.StatefulSet) bool {
-	l := log.Log
-	l.Info("Waiting to start...", "name", statefulset.Name)
-
-	monstatefulset, err := clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), statefulset.Name, metav1.GetOptions{})
-	if err != nil {
-		l.Error(err, "Could not monitor")
-	}
-
-	labelSelector := metav1.FormatLabelSelector(monstatefulset.Spec.Selector)
-	pods, err := getPodFromLabel(clientset, namespace, labelSelector)
-
-	// Print the status of each pod
-	for _, pod := range pods.Items {
-		if pod.DeletionTimestamp != nil {
-			// One of the pods in the stateful set is term
-			l.Info("Pod is terminating", "name", pod.Name)
-			return false
-		}
-	}
-
-	expectedReplicas := *monstatefulset.Spec.Replicas
-	readyReplicas := monstatefulset.Status.ReadyReplicas
-	l.Info("Monitoring replicas", "expected", expectedReplicas, "ready", readyReplicas)
-	if readyReplicas == expectedReplicas {
-		l.Info("Statefulset ready.", "name", statefulset.Name)
-		return true
-	}
-	return false
-}
-
-func getPodFromLabel(clientset *kubernetes.Clientset, namespace string, labelSelector string) (*v1.PodList, error) {
-	// List the pods matching the label selector
-	pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labelSelector,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return pods, nil
-}
 func waitForConditionWithTimeout(condFunc func() bool, interval, timeout time.Duration) bool {
 	l := log.Log
 
