@@ -20,6 +20,8 @@ controllerManager:
       requests:
         cpu: 100m
         memory: 128Mi
+  nodeSelector:
+    kubernetes.azure.com/mode: system
   replicas: 1
   serviceAccount:
     annotations: {}
