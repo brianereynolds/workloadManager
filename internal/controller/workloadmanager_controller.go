@@ -25,6 +25,7 @@ import (
 	"greyridge.com/workloadManager/internal/controller/scheduling"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -369,6 +370,7 @@ func waitForConditionWithTimeout(condFunc func() bool, interval, timeout time.Du
 			return false
 		case <-ticker.C:
 			if condFunc() {
+				ticker.Stop() // Explicitly stop ticker
 				return true
 			}
 		}
@@ -395,7 +397,11 @@ func (r *WorkloadManagerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	var wlManager k8smanagersv1.WorkloadManager
 
 	if err := r.Get(ctx, req.NamespacedName, &wlManager); err != nil {
-		panic(err.Error())
+		if k8serrors.IsNotFound(err) {
+			// Resource was deleted, clean up and exit reconciliation
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
 	}
 
 	// Defaults
