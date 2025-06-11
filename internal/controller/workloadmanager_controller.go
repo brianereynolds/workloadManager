@@ -399,7 +399,7 @@ func (r *WorkloadManagerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if err := r.Get(ctx, req.NamespacedName, &wlManager); err != nil {
 		if k8serrors.IsNotFound(err) {
 			// Resource was deleted, clean up and exit reconciliation
-			l.Info("Exit Reconcile")
+			l.Info("Exit Reconcile - No WL manager config found")
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
