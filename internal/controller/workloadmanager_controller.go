@@ -369,6 +369,7 @@ func waitForConditionWithTimeout(condFunc func() bool, interval, timeout time.Du
 			return false
 		case <-ticker.C:
 			if condFunc() {
+				ticker.Stop() // Explicitly stop ticker
 				return true
 			}
 		}
